@@ -1,7 +1,7 @@
 # Poker AI for Heads-Up Hold’em ♠️♥️
 This project is an experimental journey to build a poker AI capable of consistently beating real players in heads-up No-Limit Texas Hold’em. Inspired by AlphaZero, our agent will evolve from simple heuristics to advanced strategies that not only use card equity and pot odds but also learn to model and exploit opponents’ tendencies over time.
 
-🔍 Updated Scope
+## 🔍 Updated Scope
 Rule-Based Bot Data Generation
 
 Two Complementary Bots: We start by creating two lightweight, rule-based agents (Bot A and Bot B) with slightly different thresholds for opening ranges, postflop betting, and bluff frequencies.

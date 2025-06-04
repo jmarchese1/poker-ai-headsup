@@ -1,11 +1,14 @@
 
+#goal for today is to update evaluate hand functions and display card functions to work without global variables.
+
+#evaluate hand should be able to notice flush draws and straight draws to incorporate semi bluffing into the model
+
+#it would be ineresting to see out of all 169 possible hands where the users hand ranks postflop
+
 #this is a file that containts the essential helper functions from the core_engine.ipynb file
 import random
 import pandas as pd
 import itertools
-
-#creating a global variable for the board and the game results dataframe
-board = []
 
 #column names to add to the dataframe below
 columns = [
@@ -94,16 +97,14 @@ def reset_stack(player_1, player_2, starting_stack):
   return player_1, player_2
 
 def clear_dataframe(dataframe):
-  game_results_df = pd.DataFrame(columns=columns)
-  return game_results_df
+  dataframe = pd.DataFrame(columns=columns)
+  return dataframe
 
-def reset_game(player_1, player_2):
-  global board
-  global game_results_df
+def reset_game(player_1, player_2, board, dataframe):
   clear_hand(player_1, player_2)
   board = clear_board(board)
   reset_stack(player_1, player_2, 100000)
-  game_results_df = clear_dataframe(game_results_df)
+  dataframe = clear_dataframe(dataframe)
 
 def deal_cards(cards, player_1, player_2):
   """
@@ -124,32 +125,29 @@ def clear_hand(player_1 , player_2):
 #functions to display each street on the board
 ##############################################
 
-def flop(cards):
+def flop(cards, board):
   """
   Funtion to take three random cards from the deck and place them on the board.
   """
-  global board
   for i in range(3):
     random_card = random.choice(cards)
     cards.remove(random_card)
     board.append(random_card)
   print(board)
 
-def turn(cards):
+def turn(cards, board):
   """
   This function takes a random card from the deck and places it on the board.
   """
-  global board
   random_card = random.choice(cards)
   cards.remove(random_card)
   board.append(random_card)
   print(f"The turn is the {random_card} the board shows {board}")
 
-def river(cards):
+def river(cards, board):
   """
   This function takes a random card from the deck and places it on the board.
   """
-  global board
   random_card = random.choice(cards)
   cards.remove(random_card)
   board.append(random_card)
@@ -160,51 +158,152 @@ def river(cards):
 # Showdown funcions to determine the winner
 ###############################################
 
+#go though this to try to add functionality for flush and straight draws
+
 #get seven card hand
 def get_seven_card_hand(player, board):
     return [card for card in player.hand + board]
-
 def evaluate_hand(hand):
+    """
+    returns a tuple describing the best made five-card hand ranking 
+    (9 = straight flush, 8 = four of a kind, …, 1 = high card).
+    Expects `hand` to be a list of (rank_str, suit_str), e.g. [('10','hearts'), ('ace','spades'), ...].
+    """
     rank_map = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
                 '7': 7, '8': 8, '9': 9, '10': 10,
                 'jack': 11, 'queen': 12, 'king': 13, 'ace': 14}
 
+    # Convert to numeric ranks and sort descending
     ranks = sorted([rank_map[card[0]] for card in hand], reverse=True)
     suits = [card[1] for card in hand]
-    rank_counts = {rank: ranks.count(rank) for rank in set(ranks)}
+    rank_counts = {r: ranks.count(r) for r in set(ranks)}
 
+    # Flush check
     is_flush = len(set(suits)) == 1
-    ranks_asc = sorted(ranks)
-    is_straight = ranks_asc == list(range(ranks_asc[0], ranks_asc[0] + 5))
 
+    # Straight check (accounting for wheel A-2-3-4-5)
+    ranks_asc = sorted(set(ranks))
+    is_straight = False
+    if len(ranks_asc) >= 5:
+        # check consecutive sequences of length 5
+        for i in range(len(ranks_asc) - 4):
+            window = ranks_asc[i:i + 5]
+            if window == list(range(window[0], window[0] + 5)):
+                is_straight = True
+                top_of_straight = window[-1]
+                break
+        # check wheel (A-2-3-4-5)
+        if not is_straight and set([14, 2, 3, 4, 5]).issubset(ranks_asc):
+            is_straight = True
+            top_of_straight = 5
+
+    # Now the “made hand” categories:
+    # 9 = straight flush, 8 = quads, 7 = full house, 6 = flush,
+    # 5 = straight, 4 = three of a kind, 3 = two pair, 2 = one pair, 1 = high card
     if is_straight and is_flush:
-        return (9, max(ranks))  # Straight flush
+        return (9, top_of_straight)
     elif 4 in rank_counts.values():
-        four = max(rank for rank, count in rank_counts.items() if count == 4)
-        kicker = max(r for r in ranks if r != four)
-        return (8, four, kicker)
-    elif sorted(rank_counts.values()) == [2, 3] or sorted(rank_counts.values()) == [3, 2]:
-        three = max(rank for rank, count in rank_counts.items() if count == 3)
-        pair = max(rank for rank, count in rank_counts.items() if count == 2)
-        return (7, three, pair)
+        four_rank = max(r for r, c in rank_counts.items() if c == 4)
+        kicker = max(r for r in ranks if r != four_rank)
+        return (8, four_rank, kicker)
+    elif sorted(rank_counts.values()) == [2, 3]:
+        three_rank = max(r for r, c in rank_counts.items() if c == 3)
+        pair_rank = max(r for r, c in rank_counts.items() if c == 2)
+        return (7, three_rank, pair_rank)
     elif is_flush:
-        return (6, *ranks)
+        return (6, *ranks[:5])
     elif is_straight:
-        return (5, max(ranks))
+        return (5, top_of_straight)
     elif 3 in rank_counts.values():
-        three = max(rank for rank, count in rank_counts.items() if count == 3)
-        kickers = [r for r in ranks if r != three]
-        return (4, three, *kickers[:2])
+        three_rank = max(r for r, c in rank_counts.items() if c == 3)
+        kickers = [r for r in ranks if r != three_rank]
+        return (4, three_rank, kickers[0], kickers[1])
     elif list(rank_counts.values()).count(2) == 2:
-        pairs = sorted((rank for rank, count in rank_counts.items() if count == 2), reverse=True)
-        kicker = max(rank for rank in ranks if rank not in pairs)
-        return (3, *pairs, kicker)
+        pair_ranks = sorted([r for r, c in rank_counts.items() if c == 2], reverse=True)
+        kicker = max(r for r in ranks if r not in pair_ranks)
+        return (3, pair_ranks[0], pair_ranks[1], kicker)
     elif 2 in rank_counts.values():
-        pair = max(rank for rank, count in rank_counts.items() if count == 2)
-        kickers = [r for r in ranks if r != pair]
-        return (2, pair, *kickers[:3])
+        pair_rank = max(r for r, c in rank_counts.items() if c == 2)
+        kickers = [r for r in ranks if r != pair_rank]
+        return (2, pair_rank, kickers[0], kickers[1], kickers[2])
     else:
         return (1, *ranks[:5])
+
+
+
+def has_flush_draw(hole_cards, board_cards):
+    """
+    Returns True if there is exactly a four‐card flush draw (needing one more suit to complete),
+    AND at least one of those four cards is in hole_cards (i.e., board alone does not already
+    contain those four cards).
+    Each card is (rank_str, suit_str). 
+    """
+    # Count suits separately
+    from collections import Counter
+
+    # Count suit occurrences on board and in hole
+    board_suits = [c[1] for c in board_cards]
+    hole_suits  = [c[1] for c in hole_cards]
+
+    board_count = Counter(board_suits)
+    hole_count  = Counter(hole_suits)
+
+    # For each suit, see if (board + hole) gives exactly 4 of that suit,
+    # and ensure board alone has <= 3 of that suit (so hole contributes at least 1)
+    for suit in ['clubs', 'diamonds', 'hearts', 'spades']:
+        total_suit = board_count[suit] + hole_count[suit]
+        if total_suit == 4 and board_count[suit] < 4 and hole_count[suit] > 0:
+            return True
+
+    return False
+
+
+
+def has_straight_draw(hole_cards, board_cards):
+    """
+    Returns True if there is exactly a four‐card straight draw (needing one more rank to complete),
+    AND at least one card of that 4‐card sequence is in hole_cards (board alone does not already
+    have all four).
+    We will look for any consecutive run of 4 ranks among the union of hole+board,
+    but check that the board alone does not already have all 4.
+    """
+    # Convert ranks to integers
+    rank_map = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+                '7': 7, '8': 8, '9': 9, '10': 10,
+                'jack': 11, 'queen': 12, 'king': 13, 'ace': 14}
+
+    # Helper to get a set of integer ranks from a card list
+    def ranks_set(cards):
+        return set(rank_map[c[0]] for c in cards)
+
+    board_ranks = ranks_set(board_cards)
+    hole_ranks  = ranks_set(hole_cards)
+    all_ranks   = sorted(board_ranks.union(hole_ranks))
+
+    # For wheel A‐2‐3‐4‐5 detection, add “1” if Ace is present
+    if 14 in all_ranks:
+        all_ranks.append(1)
+    all_ranks = sorted(set(all_ranks))
+
+    # Look for ANY length-4 consecutive run within the combined ranks
+    # but ensure the board alone does not already have all 4 of them.
+    # And at least one of the ranks of that run must come from hole_ranks.
+    n = len(all_ranks)
+    for i in range(n):
+        # Try building a run of length 4 starting at all_ranks[i]
+        run_start = all_ranks[i]
+        run = {run_start + offset for offset in range(4)}
+        if run.issubset(all_ranks):
+            # Now check: how many of those run ranks are on board alone?
+            board_in_run = run.intersection(board_ranks)
+            hole_in_run  = run.intersection(hole_ranks)
+            if len(board_in_run) < 4 and len(board_in_run) + len(hole_in_run) == 4 and len(hole_in_run) > 0:
+                # board has <4, but total (board+hole) = 4, and hole contributed at least 1
+                return True
+
+    return False
+
+
 
 def best_hand(seven_cards):
     all_combos = itertools.combinations(seven_cards, 5)
@@ -473,6 +572,5 @@ def score_hand_strength(rank_tuple):
         decimal += kicker / (15 ** (i + 1))
 
     return round(category + decimal, 4)
-
 
 

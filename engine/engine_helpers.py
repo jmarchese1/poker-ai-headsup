@@ -163,7 +163,8 @@ def river(cards, board):
 #get seven card hand
 def get_seven_card_hand(player, board):
     return [card for card in player.hand + board]
-def evaluate_hand(hand):
+
+def evaluate_hand(hand, board):
     """
     returns a tuple describing the best made five-card hand ranking 
     (9 = straight flush, 8 = four of a kind, …, 1 = high card).
@@ -177,6 +178,7 @@ def evaluate_hand(hand):
     ranks = sorted([rank_map[card[0]] for card in hand], reverse=True)
     suits = [card[1] for card in hand]
     rank_counts = {r: ranks.count(r) for r in set(ranks)}
+    board_ranks = sorted([rank_map[card[0]] for card in board], reverse = True)
 
     # Flush check
     is_flush = len(set(suits)) == 1
@@ -225,9 +227,20 @@ def evaluate_hand(hand):
     elif 2 in rank_counts.values():
         pair_rank = max(r for r, c in rank_counts.items() if c == 2)
         kickers = [r for r in ranks if r != pair_rank]
-        return (2, pair_rank, kickers[0], kickers[1], kickers[2])
+        highest_board_rank = board_ranks[0]
+        second_board_rank = board_ranks[1]
+        if pair_rank > highest_board_rank:
+            return (2, pair_rank, highest_board_rank, second_board_rank, kickers[0], 4) #disguised top pair (poket pair)
+        elif pair_rank == highest_board_rank:
+           return (2, pair_rank, second_board_rank, kickers[0], kickers[1], 1) #pair strength is the last one
+        elif pair_rank == second_board_rank:
+            return (2, second_board_rank, highest_board_rank, kickers[0], kickers[1], 2) #pair strength is the last one
+        else:
+            return (2, pair_rank, highest_board_rank, second_board_rank, kickers[0], 3) #means the pair is not first or second on the board
     else:
         return (1, *ranks[:5])
+
+  
 
 
 

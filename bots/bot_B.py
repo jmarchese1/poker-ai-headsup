@@ -71,7 +71,7 @@ class PokerBot_B:
         else:
           preflop_decision = "call"
 
-      return preflop_decision, strength
+    return preflop_decision, strength #ensure the return keyword is in the correct position for each function
 
   def get_preflop_raise_amount(self):
     "Bot B preflop raise amount, same functionality as bot_A's preflop raises with slighly different tendencies and sizings to reflect differences in play styles"
@@ -202,7 +202,7 @@ class PokerBot_B:
           else:
             post_flop_decision = "raise"
 
-        return post_flop_decision, hand_ranking[0]
+        return post_flop_decision, hand_ranking[0] #this should work theres two sepearte nested return keywords
 
   #already have function for raise amounts
 
@@ -226,7 +226,7 @@ class PokerBot_B:
       else:
         post_flop_bet_amount = int(round(2/3 * pot))
 
-    return post_flop_bet_amount
+    return post_flop_bet_amount #this is postitioned correctly
 
   def get_post_flop_decision_2(self, board):
     """

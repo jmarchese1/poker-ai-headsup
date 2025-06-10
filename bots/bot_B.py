@@ -116,7 +116,7 @@ class PokerBot_B:
 
       #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
       full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-      hand_ranking = evaluate_hand(full_hand)
+      hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
       #see if there is more to the bots hand than whats visible
       flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -235,7 +235,7 @@ class PokerBot_B:
     """
     #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -288,7 +288,7 @@ class PokerBot_B:
 
           #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -526,7 +526,7 @@ class PokerBot_B:
     """
     #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -576,7 +576,7 @@ class PokerBot_B:
         """
           #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
         full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-        hand_ranking = evaluate_hand(full_hand)
+        hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
         #see if there is more to the bots hand than whats visible
         flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -830,7 +830,7 @@ class PokerBot_B:
     """
     #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -863,6 +863,6 @@ class PokerBot_B:
     else:
       post_river_decision = "call"
 
-      return post_river_decision, hand_ranking[0]
+    return post_river_decision, hand_ranking[0]
 
 

@@ -15,6 +15,8 @@ from engine.engine_helpers import preflop_hand_strength, create_deck, deal_cards
 #creating a poker bot class to make decisions depending on specific circumstances in the core_engine
 import random
 
+#debugging make sure all returns are in correct position and evaluate hand board = board parameter is present
+
 class PokerBot_A:
   """
   This class creates a bot to play the small blind position in poker
@@ -35,7 +37,7 @@ class PokerBot_A:
     #getting the preflop hand strength with helper function and actions to take based on the strength of the hand
     strength = preflop_hand_strength(self.hand[0], self.hand[1])
     if strength > 0.8:
-      random_number = random.randint(1, 100)
+      random_number = random.randint(1, 100) #get a random number
       if random_number >= 7:
         preflop_decision = "raise"
       else:
@@ -105,7 +107,7 @@ class PokerBot_A:
     
     #this sequence determines what state the players hand is in (ex: if it flopped a pair, flush draw, straight draw, etc.) -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible 
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -182,7 +184,7 @@ class PokerBot_A:
     #this sequence of function calls determies what state the players hand is in (ex: if it flopped a pair, flush draw, straight draw, etc.) -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     #the functions can be found in engine/engine_helpers.py
     full_hand = get_seven_card_hand(self, board) 
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible 
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -252,7 +254,7 @@ class PokerBot_A:
         """
         #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
         full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-        hand_ranking = evaluate_hand(full_hand)
+        hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
         #see if there is more to the bots hand than whats visible 
         flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -412,7 +414,7 @@ class PokerBot_A:
     """
     #determine the ranking of the bot's hand and how it will act based on the opponents actions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible 
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -461,7 +463,7 @@ class PokerBot_A:
         """
         #get the hand ranking of the bot's hand and how it will act based on the opponents actions
         full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-        hand_ranking = evaluate_hand(full_hand)
+        hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
         #see if there is more to the bots hand than whats visible 
         flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -718,7 +720,7 @@ class PokerBot_A:
     """
     #this sequence determines what state the players hand is in -- it would be helpful to update the function to recognize board patterns and make more complex decisions
     full_hand = get_seven_card_hand(self, board) #returns a list of the players cards in addition to whats displayed on the board
-    hand_ranking = evaluate_hand(full_hand)
+    hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible 
     flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
@@ -748,14 +750,14 @@ class PokerBot_A:
     #low pair decision making
       else:
         if random.randint(1, 100) > 10: #low pair almost certianly losing
-          post_turn_decision = "fold"
+          post_river_decision = "fold"
         else:
-          post_turn_decision = "call"
+          post_river_decision = "call"
     #if the hand ranking is greater then one pair -- logical to defend the hand in most cases with occasional re-raises
     else:
       if random.randint(1, 100) > 25:
-        post_turn_decision = "call"
+        post_river_decision = "call"
       else:
-        post_turn_decision = "re-raise"
+        post_river_decision = "re-raise"
 
-      return post_turn_decision, hand_ranking[0]
+    return post_river_decision, hand_ranking[0]

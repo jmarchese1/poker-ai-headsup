@@ -119,8 +119,8 @@ class PokerBot_B:
       hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
       #see if there is more to the bots hand than whats visible
-      flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-      straight_draw = has_straight_draw(full_hand) #functiono will return True if the bot needs one card to make a straight
+      flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+      straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #functiono will return True if the bot needs one card to make a straight
 
       if opponent_postflop_decision == "check":
         #how the bot will act when it flops nothing -- it can be a good idea to bet here after flopping nothing to take down the pot if they also flopped nothing
@@ -238,8 +238,8 @@ class PokerBot_B:
     hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
-    flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-    straight_draw = has_straight_draw(full_hand) #functiono will return True if the bot needs one card to make a straight
+    flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+    straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #functiono will return True if the bot needs one card to make a straight
 
     if hand_ranking[0] == 1 and flush_draw == False and straight_draw == False:
       if random.randint(1, 100) > 2:
@@ -291,8 +291,8 @@ class PokerBot_B:
     hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
-    flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-    straight_draw = has_straight_draw(full_hand) #functiono will return True if the bot needs one card to make a straight
+    flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+    straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #functiono will return True if the bot needs one card to make a straight
 
     #this means that bot-a went check-check without any check raises, bot-a is most likely weak here
     if opponent_post_flop_decision == "check" and opponent_turn_decision == "check" and opponent_post_flop_decision_2 != "re-raise":
@@ -529,8 +529,8 @@ class PokerBot_B:
     hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
-    flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-    straight_draw = has_straight_draw(full_hand) #function will return True if the bot needs one card to make a straight
+    flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+    straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a straight
 
     if hand_ranking[0] == 1 and flush_draw == False and straight_draw == False: #opponent is showing a lot of strength -- fold air
         post_turn_decision = "fold"
@@ -579,8 +579,8 @@ class PokerBot_B:
         hand_ranking = evaluate_hand(hand = full_hand, board = board)
 
         #see if there is more to the bots hand than whats visible
-        flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-        straight_draw = has_straight_draw(full_hand) #functiono will return True if the bot needs one card to make a straight
+        flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+        straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #functiono will return True if the bot needs one card to make a straight
 
         #the opponent checked on the flop and the turn and the river -- logically this is a great time to bet regardless of the hand
         if opponent_post_flop_decision == "check" and opponent_post_turn_decision == "check" and opponent_post_river_decision == "check" : #the opponent is likely very weak -- worth taking a stab at winning the pot with weaker hands that would lose a showdown
@@ -833,8 +833,8 @@ class PokerBot_B:
     hand_ranking = evaluate_hand(full_hand, board = board)
 
     #see if there is more to the bots hand than whats visible
-    flush_draw = has_flush_draw(full_hand) #function will return True if the bot needs one card to make a flush
-    straight_draw = has_straight_draw(full_hand) #function will return True if the bot needs one card to make a straight
+    flush_draw = has_flush_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a flush
+    straight_draw = has_straight_draw(hole_cards = self.hand, board_cards = board) #function will return True if the bot needs one card to make a straight
 
     if hand_ranking[0] == 1 and flush_draw == False and straight_draw == False: #opponent is showing a lot of strength -- fold air
         post_river_decision = "fold"

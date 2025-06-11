@@ -321,7 +321,7 @@ def best_hand(seven_cards, board):
     all_combos = itertools.combinations(seven_cards, 5)
     return max(all_combos, key=lambda combo: evaluate_hand(combo, board = board))
 
-def determine_winner(players, board, pot, row_idx):
+def determine_winner(players, board, pot, row_idx, dataframe):
     results = []
     for player in players: #already a list at the top of gameflow
         seven = get_seven_card_hand(player, board = board)
@@ -335,13 +335,13 @@ def determine_winner(players, board, pot, row_idx):
 
     if winner[1] == "Bot B":
       players[1].chips += pot
-      game_results_df.at[row_idx, "winnings"] = pot
-      game_results_df.at[row_idx, "winner"] = players[1].name
+      dataframe.at[row_idx, "winnings"] = pot
+      dataframe.at[row_idx, "winner"] = players[1].name
 
     else: #Bot A wins
       players[0].chips += pot
-      game_results_df.at[row_idx, "winnings"] = pot
-      game_results_df.at[row_idx, "winner"] = players[0].name
+      dataframe.at[row_idx, "winnings"] = pot
+      dataframe.at[row_idx, "winner"] = players[0].name
 
      
 #########################################

@@ -66,7 +66,7 @@ class PokerBot_B:
         preflop_decision = "call"
       else:
         random_number = random.randint(1, 100)
-        if random_number >=25:
+        if random_number >=70:
           preflop_decision = "fold"
         else:
           preflop_decision = "call"

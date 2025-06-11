@@ -1,4 +1,3 @@
-
 #goal for today is to update evaluate hand functions and display card functions to work without global variables.
 
 #evaluate hand should be able to notice flush draws and straight draws to incorporate semi bluffing into the model
@@ -318,35 +317,35 @@ def has_straight_draw(hole_cards, board_cards):
 
 
 
-def best_hand(seven_cards):
+def best_hand(seven_cards, board):
     all_combos = itertools.combinations(seven_cards, 5)
-    return max(all_combos, key=evaluate_hand)
+    return max(all_combos, key=lambda combo: evaluate_hand(combo, board = board))
 
 def determine_winner(players, board, pot, row_idx):
     results = []
-    for player in players:
-        seven = get_seven_card_hand(player, board)
-        best = best_hand(seven)
-        hand_rank = evaluate_hand(best)
+    for player in players: #already a list at the top of gameflow
+        seven = get_seven_card_hand(player, board = board)
+        best = best_hand(seven_cards = seven, board = board)
+        hand_rank = evaluate_hand(hand = best, board = board)
         results.append((hand_rank, player.name, best))
 
     results.sort(reverse=True)  # higher ranks first
     winner = results[0]
     print(f"{winner[1]} wins with hand {winner[2]} ranked {winner[0]}")
 
-    if winner[1] == "com":
+    if winner[1] == "Bot B":
       players[1].chips += pot
       game_results_df.at[row_idx, "winnings"] = pot
       game_results_df.at[row_idx, "winner"] = players[1].name
 
-    else:
+    else: #Bot A wins
       players[0].chips += pot
       game_results_df.at[row_idx, "winnings"] = pot
       game_results_df.at[row_idx, "winner"] = players[0].name
 
      
 #########################################
-#Ppreflop hand strength evaluation functions
+#Preflop hand strength evaluation functions
 ##########################################
 
 

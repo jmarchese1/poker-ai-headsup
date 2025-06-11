@@ -335,7 +335,6 @@ class PokerBot_B:
           else:
             post_turn_decision = "check"
 
-        return post_turn_decision, hand_ranking[0]
 
       #this is one of the stronger lines the opponent can take
     elif opponent_post_flop_decision == "bet" or "check" and opponent_turn_decision == "bet" and opponent_post_flop_decision_2 != "re-raise":
@@ -373,7 +372,6 @@ class PokerBot_B:
         else:
           if random.randint(1, 100) > 25:
             post_turn_decision = "call" #good time to start building a pot with strong hands and the opponent is doing it for us
-        return post_turn_decision, hand_ranking[0]
 
     #this is an opportunity to take advantage of the opponent slowing down -- perhaps they were afraid of bot-b's call on the flop and decided to check the turn
     elif opponent_post_flop_decision == "bet" and opponent_turn_decision == "check"  and opponent_post_flop_decision_2 != "re-raise":
@@ -416,7 +414,6 @@ class PokerBot_B:
           else:
             post_turn_decision = "check"
 
-        return post_turn_decision, hand_ranking[0]
 
     #granted the flop decision is to re-raise this tells what the bot will do depending on the opponents follow up turn decision
     else: #this means bot-a decided to re-raise on either the flop, means the opponent likely has a very strong hand
@@ -452,7 +449,6 @@ class PokerBot_B:
           else:
             post_turn_decision = "check"
 
-        return post_turn_decision, hand_ranking[0]
 
       #if opponent post turn decision is to bet after re-raising on the flop
       else:
@@ -491,7 +487,8 @@ class PokerBot_B:
           else:
             post_turn_decision = "re-raise"
 
-        return post_turn_decision, hand_ranking[0]
+
+    return post_turn_decision, hand_ranking[0]
 
   def get_post_turn_bet_amount(self, pot, hand_ranking): #this function needs to know the potsize to determine sizings
     """

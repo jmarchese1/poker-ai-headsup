@@ -768,6 +768,13 @@ class PokerBot_B:
               post_river_decision = "raise" #good time to start building a pot with strong hands
             else:
               post_river_decision = "call"
+        
+        else: #creating an else block for how to act if none of the patterns match
+          random_number = random.randint(1, 100)
+          if random_number > 25:
+            post_river_decision = "call"
+          else:
+            post_river_decision = "fold"
 
 
 

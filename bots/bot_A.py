@@ -501,8 +501,6 @@ class PokerBot_A:
           else:
             post_river_decision = "bet" #good time to start building a pot with strong hands
             
-
-          return post_river_decision, hand_ranking[0]
         
         #if the opponent bet at each street they are most likely strong -- probably a good idea to only bet strong hands
         elif opponent_post_flop_decision == "bet" and opponent_post_turn_decision == "bet":
@@ -536,8 +534,6 @@ class PokerBot_A:
           else:
             post_river_decision = "bet" #good time to start building a pot with strong hands
             
-
-          return post_river_decision, hand_ranking[0]
         
         elif opponent_post_flop_decision == "bet" and opponent_post_turn_decision == "check":
           #if the bot made it this long with air -- it might be a good idea to start semi bluffing 
@@ -571,8 +567,6 @@ class PokerBot_A:
             post_river_decision = "bet" #good time to start building a pot with strong hands
             
 
-          return post_river_decision, hand_ranking[0]
-
         elif opponent_post_flop_decision == "bet" and opponent_post_turn_decision == "check":
           #if the bot made it this long with air -- it might be a good idea to start semi bluffing 
           if hand_ranking[0] == 1 and flush_draw == False and straight_draw == False:
@@ -604,8 +598,6 @@ class PokerBot_A:
           else:
             post_river_decision = "bet" #good time to start building a pot with strong hands
             
-
-          return post_river_decision, hand_ranking[0]
 
       
         elif opponent_post_flop_decision == "check" and opponent_post_turn_decision == "bet":
@@ -639,8 +631,6 @@ class PokerBot_A:
           else:
             post_river_decision = "bet" #good time to start building a pot with strong hands
             
-
-          return post_river_decision, hand_ranking[0]
 
         elif opponent_post_flop_decision == "raise" or opponent_post_turn_decision == "raise":
           #if the bot made it this long with air -- it might be a good idea to start semi bluffing 
@@ -676,8 +666,11 @@ class PokerBot_A:
               post_river_decision = "check"
             else:
               post_river_decision = "bet"
+
+        else: #just incase to cover any missed sequences
+           post_river_decision = "check"
             
-          return post_river_decision, hand_ranking[0]
+        return post_river_decision, hand_ranking[0] #removed other return keywords from the funtions and moved this one to cover the full function
 
 
   def get_post_river_bet_amount(self, pot, hand_ranking): #this function needs to know the potsize to determine sizings

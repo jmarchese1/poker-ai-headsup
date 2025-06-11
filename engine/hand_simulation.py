@@ -21,6 +21,10 @@ import pandas as pd
 import random
 
 
+#creating bots and the game results dataframe:
+import pandas as pd
+import random
+
 #creation of bots to participate in the game, #agression and bluffing are good parameters to eventually introduce
 bot_A = PokerBot_A(name = "Bot A", stack_size = 100000, small_blind = 1, big_blind = 2)
 bot_B = PokerBot_B(name = "Bot B", stack_size = 100000, small_blind = 1, big_blind = 2)
@@ -65,13 +69,15 @@ columns = [
     "turn_Bot_A_decision",
     "turn_Bot_A_bet",
     "turn_Bot_A_decision_2",
-    "turn_Bot_A_raise_amount", #would apply to decision_2 because bot_A can only raise once on the turn
+    "turn_Bot_A_raise_amount", #would apply to decision_2 because bot_A can only raise once on the 
+    "turn_Bot_A_decision_3",
     #river variables
     "river_Bot_A_hand_strength",
     "river_Bot_A_decision",
     "river_Bot_A_bet",
     "river_Bot_A_decision_2",
     "river_Bot_A_raise_amount", #would apply to decision_2 because bot_A can only raise once on the river
+    "river_Bot_A_decision_3",
 
     ######################
     #bot B hand information
@@ -105,8 +111,10 @@ columns = [
     "river_Bot_B_re_raise_amount", #if bot_B re-raises bot_A postflop for the second decision
 ]
 
+
 # Create the DataFrame with these columns
 game_results_df = pd.DataFrame(columns=columns)
+#massive gameflow function
 
 #this function includes everything that can happen preflop
 def gameflow(player_1 = bot_A, player_2 = bot_B):
@@ -114,7 +122,9 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
   this function runs the preflop gameflow
   """
 
-  global board
+  #clear the players hands at the start of the new hand
+  clear_hand(player_1 = player_1, player_2 = player_2)
+
   board = []
 
   #for determining the winner need to loop through both players
@@ -137,7 +147,8 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
   player_2.chips -= big_blind
 
   #adding the blind amount to the pot winnnings -- the same as the chips being removed from the players stacks
-  pot += small_blind + big_blind
+  pot += small_blind 
+  pot += big_blind
 
   #no need to print the players hands because they hands will be simulated by the bots
 
@@ -177,12 +188,14 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
     "turn_Bot_A_bet" : None,
     "turn_Bot_A_decision_2" : None,
     "turn_Bot_A_raise_amount" : None, #would apply to decision_2 because bot_A can only raise once on the turn
+    "turn_Bot_A_decision_3" : None, 
     #river variables
     "river_Bot_A_hand_strength" : None,
     "river_Bot_A_decision" : None,
     "river_Bot_A_bet" : None,
     "river_Bot_A_decision_2" : None,
     "river_Bot_A_raise_amount" : None, #would apply to decision_2 because bot_A can only raise once on the river
+    "river_Bot_A_decision_3" : None,
 
     ######################
     #bot B hand information
@@ -231,22 +244,23 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
 
   #bot_A (player_1) is the small blind and acts first preflop -- the function returns the string decision at [0] and the preflop hand strength at [1]
-  Bot_A_preflop_decision, Bot_A_preflop_strength = bot_A.get_preflop_decision()[0], bot_A.get_preflop_decision()[1]
+  Bot_A_preflop_decision = bot_A.get_preflop_decision()[0]
+  Bot_A_preflop_strength = bot_A.get_preflop_decision()[1]
 
   #adding the bot_A preflop decision and hand strength to the dataframe
   game_results_df.at[row_idx, "preflop_Bot_A_decision"] = Bot_A_preflop_decision
   game_results_df.at[row_idx, "preflop_Bot_A_hand_strength"] = Bot_A_preflop_strength
 
-  if Bot_A_preflop_decision == "fold":
+  if Bot_A_preflop_decision == "fold": #note if bot-A decides to fold nothing about bot-b's hand is recorded which should be fine
     player_2.chips += pot #bot B wins the pot of the blinds
-    pot = 0 #pot is reset to 0 for the next hand
-    clear_hand() #hands of the players are cleared for the next 
+    clear_hand(player_1 = player_1, player_2 = player_2) #hands of the players are cleared for the next 
     
     #adding the results of the hand to the data frame
-    game_results_df.at[row_idx, "winnings"] = pot
+    game_results_df.at[row_idx, "winnings"] = pot #make sure pot is set to zero after this line runs at each spot
     game_results_df.at[row_idx, "winner"] = player_2.name
     round_over = True #ensures the game does not continue further
     clear_board(board)
+    pot = 0
 
   elif Bot_A_preflop_decision == "call":
     player_1.chips -= small_blind #Bot A enters another small blind to equal the big blind
@@ -261,22 +275,22 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
     game_results_df.at[row_idx, "preflop_Bot_B_decision"] = Bot_B_decision
 
     if Bot_B_decision == "check": #this would bring on the flop (first three cards)
-      flop(cards = cards)
+      flop(cards = cards, board = board)
       game_results_df.at[row_idx, "flop_cards"] = board #adds the flop cards to the dataframe
       game_results_df.at[row_idx, "postflop_potsize"] = pot #adds the current potsize as the postflop potsize (the size of the pot while decisions on the flop are being made)
     
     else: #the only other option for bot B is to raise on its first decision after a call from bot A
-      Bot_B_raise_amount = bot_B.get_preflop_raise_amount()
+      Bot_B_raise_amount = int(bot_B.get_preflop_raise_amount())
       game_results_df.at[row_idx, "preflop_Bot_B_raise_amount"] = Bot_B_raise_amount
       player_2.chips -= Bot_B_raise_amount #the raise amount is subtracted from the bots stack
       pot += Bot_B_raise_amount #the raise amount is added to the pot
 
       #now the Bot A gets to respond to the raise with either a fold, call, or re-raise
-      Bot_A_decision_2 = bot_A.get_preflop_decision_2() #this function was created knowing it would follow a raise so no parameters needed.
+      Bot_A_decision_2 = bot_A.get_preflop_decision_2() #this function was created knowing it would follow a raise so no parameters needed., dont index this function thats why it was returning "c"
       game_results_df.at[row_idx, "preflop_Bot_A_decision_2"] = Bot_A_decision_2
       if Bot_A_decision_2 == "fold":
         player_2.chips += pot #bot B wins the bot
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
         game_results_df.at[row_idx, "winnings"] = pot
         game_results_df.at[row_idx, "winner"] = player_2.name
         round_over = True
@@ -285,27 +299,27 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
       elif Bot_A_decision_2 == "call":
         player_1.chips -= Bot_B_raise_amount #Bot A puts in the additional chips that bot B raised by
         pot += Bot_B_raise_amount #the pot grows by the call amount from bot A 
-        flop(cards = cards) #this sequence of actions makes the flop come
+        flop(cards = cards, board = board) #this sequence of actions makes the flop come
         game_results_df.at[row_idx, "flop_cards"] = board #adds the flop cards to the dataframe
         game_results_df.at[row_idx, "postflop_potsize"] = pot
       else: #bot A decides to re-raise Bot_B's raise -- currently programmed not to re-raise here ever
-        Bot_A_re_raise_amount = bot_A.get_re_raise_amount(Bot_B_decision, )
+        Bot_A_re_raise_amount = int(bot_A.get_re_raise_amount(opponent_bet_amount= Bot_B_raise_amount, hand_ranking = 2)) #function needs to updated for preflop decision so set to 2 for simplicity
         game_results_df.at[row_idx, "preflop_user_raise_amount_2"] = Bot_A_re_raise_amount
         pot += Bot_A_re_raise_amount
         player_1.chips -= Bot_A_re_raise_amount
 
-        #the computer now has the opportunity to respond to the re-raise with either a call or a fold
+        #Bot_B now has the opportunity to respond to the re-raise with either a call or a fold
         Bot_B_decision_2 = random.choice(["call", "fold"]) #REPLACE WITH FUNCTION FOR THIS DECISION CURRENTLY NOT MADE
         game_results_df.at[row_idx, "preflop_Bot_B_decision_2"] = Bot_B_decision_2
         if Bot_B_decision_2 == "call":
           player_2.chips -= (Bot_A_re_raise_amount - Bot_B_raise_amount) #calls the difference of Bot B's raise and the opponents re-raise
           pot += (Bot_A_re_raise_amount - Bot_B_raise_amount)
-          flop(cards = cards)
+          flop(cards = cards, board = board)
           game_results_df.at[row_idx, "flop_cards"] = board #adds the flop cards to the dataframe
           game_results_df.at[row_idx, "postflop_potsize"] = pot
         else: #the other option is to fold which means bot_A wins the hand
           player_1.chips += pot
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_1.name
           round_over = True
@@ -314,19 +328,22 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
   #if bot_A decision is raise pre-flop as the first decision
   else:
-    Bot_A_raise_amount = bot_A.get_preflop_raise_amount()
+    Bot_A_raise_amount = int(bot_A.get_preflop_raise_amount())
     game_results_df.at[row_idx, "preflop_Bot_A_raise_amount"] = Bot_A_raise_amount
     pot += Bot_A_raise_amount
     player_1.chips -= Bot_A_raise_amount
 
     #now bot b has the opportunity to respond to the raise
-    Bot_B_decision = bot_B.get_preflop_decision(opponent_preflop_decision = Bot_A_preflop_decision)
+    Bot_B_decision = bot_B.get_preflop_decision(opponent_preflop_decision = Bot_A_preflop_decision)[0]
     game_results_df.at[row_idx, "preflop_Bot_B_decision"] = Bot_B_decision
+
+    Bot_B_preflop_strength = bot_B.get_preflop_decision(opponent_preflop_decision = Bot_A_preflop_decision)[1]
+    game_results_df.at[row_idx, "preflop_Bot_B_hand_strength"] = Bot_B_preflop_strength
 
     #what happens based on the bot B's decision to respond to the raise
     if Bot_B_decision == "fold":
       player_1.chips += pot #bot A wins the pots
-      clear_hand()
+      clear_hand(player_1 = player_1, player_2 = player_2)
       game_results_df.at[row_idx, "winnings"] = pot
       game_results_df.at[row_idx, "winner"] = player_1.name
       round_over = True
@@ -335,24 +352,24 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
     elif Bot_B_decision == "call":
       player_2.chips -= (Bot_A_raise_amount - big_blind)
       pot += (Bot_A_raise_amount - big_blind)
-      flop(cards = cards) #this sequence causes the flop to be displayed
+      flop(cards = cards, board = board) #this sequence causes the flop to be displayed
       game_results_df.at[row_idx, "flop_cards"] = board
       game_results_df.at[row_idx, "postflop_potsize"] = pot
     else:
       #Bot B decides to re-raise Bot-A's raise
-      Bot_B_raise_amount = bot_B.get_re_raise_amount() #need to pass hand ranking -- no function built for preflop re-raise
+      Bot_B_raise_amount = int(bot_B.get_re_raise_amount(opponent_bet_amount= Bot_A_raise_amount, hand_ranking = 2)) #need to pass hand ranking -- no function built for preflop re-raise
       game_results_df.at[row_idx, "preflop_Bot_B_raise_amount"] = Bot_B_raise_amount
       player_2.chips -= Bot_B_raise_amount
 
       #after the computer raises the re-raises the user can either call or fold
 
-      Bot_A_decision_2 = bot_A.get_preflop_decision_2() #this returns a decision to either call or fold to a computer raise or bet
+      Bot_A_decision_2 = bot_A.get_preflop_decision_2() #this returns a decision to either call or fold to a computer raise or bet, only one return item
       game_results_df.at[row_idx, "preflop_Bot_A_decision_2"] = Bot_A_decision_2
       
       #what happens if bot_A decides to fold in reponse to bot B's preflop raise
       if Bot_A_decision_2 == "fold":
         player_2.chips += pot
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
         game_results_df.at[row_idx, "winnings"] = pot
         game_results_df.at[row_idx, "winner"] = player_2.name
         round_over = True
@@ -362,7 +379,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
       else:
         player_1.chips -= (Bot_B_raise_amount - Bot_A_raise_amount) #bot A needs to add the additional chips following the re-raise
         pot += (Bot_B_raise_amount - Bot_A_raise_amount)
-        flop(cards = cards) #here comes the flop
+        flop(cards = cards, board = board) #here comes the flop
         game_results_df.at[row_idx, "flop_cards"] = board
         game_results_df.at[row_idx, "postflop_potsize"] = pot
 
@@ -383,19 +400,20 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
     #bot A's postflop decision is purely based on what the board displays (doesn't consider whether opponent raised or checked preflop)
     if Bot_A_postflop_decision == "check":
       #now Bot_B gets the decision to check or bet
-      Bot_B_postflop_decision = bot_B.get_postflop_decision(board = board, opponent_postflop_decision = Bot_A_postflop_decision)[0]
+      Bot_B_postflop_decision = bot_B.get_post_flop_decision(board = board, opponent_postflop_decision = Bot_A_postflop_decision)[0]
       game_results_df.at[row_idx, "postflop_Bot_B_decision"] = Bot_B_postflop_decision
 
-      Bot_B_postflop_hand_ranking = bot_B.get_postflop_decision(board = board, opponent_postflop_decsion = Bot_A_postflop_decision)[1]
+      Bot_B_postflop_hand_ranking = bot_B.get_post_flop_decision(board = board, opponent_postflop_decision = Bot_A_postflop_decision)[1]
+      game_results_df.at[row_idx, "postflop_Bot_B_hand_strength"] = Bot_B_postflop_hand_ranking
 
       if Bot_B_postflop_decision == "check": #this means the flop went check-check
-        turn(cards = cards) #prints to the user the 3 cards for the flop + the turn
+        turn(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
         game_results_df.at[row_idx, "turn_card"] = board[3] #adds the turn card to the dataframe
         game_results_df.at[row_idx, "postturn_potsize"] = pot
 
       #bot_B has decided to bet 
       else:
-        Bot_B_bet_amount = bot_B.get_post_flop_bet_amount(hand_ranking = Bot_B_postflop_hand_ranking)
+        Bot_B_bet_amount = int(bot_B.get_post_flop_bet_amount(pot = pot, hand_ranking = Bot_B_postflop_hand_ranking))
         game_results_df.at[row_idx, "postflop_Bot_B_bet"] = Bot_B_bet_amount
 
         #adding the bet amount to the pot and subtracting it from bot b's stack
@@ -408,7 +426,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_decision_2 == "fold":
           player_2.chips += pot #bot b wins the pot
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           round_over = True
@@ -418,13 +436,13 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
         elif Bot_A_decision_2 == "call":
           player_1.chips -= Bot_B_bet_amount #bot_A mirrors the action of bot B
           pot += Bot_B_bet_amount
-          turn(cards = cards) #here comes the turn
+          turn(cards = cards, board = board) #here comes the turn
           game_results_df.at[row_idx, "turn_card"] = board[3] #adds the flop cards to the dataframe
           game_results_df.at[row_idx, "postturn_potsize"] = pot
 
         #Bot_A decision is raise in response to a bet from bot_B.. This is a check-raise from bot_A on the flop
         else:
-          Bot_A_raise_amount = bot_A.get_re_raise_amount(opponent_bet_amount = Bot_B_bet_amount ,hand_ranking = Bot_A_postflop_hand_ranking)
+          Bot_A_raise_amount = int(bot_A.get_re_raise_amount(opponent_bet_amount = Bot_B_bet_amount ,hand_ranking = Bot_A_postflop_hand_ranking))
           game_results_df.at[row_idx, "postflop_Bot_A_raise_amount"] = Bot_A_raise_amount
           pot += Bot_A_raise_amount
           player_1.chips -= Bot_A_raise_amount
@@ -435,22 +453,22 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
           if Bot_B_decision_2 == "fold":
             player_1.chips += pot #bot_A wins the pot
-            clear_hand()
+            clear_hand(player_1 = player_1, player_2 = player_2)
             game_results_df.at[row_idx, "winnings"] = pot
             game_results_df.at[row_idx, "winner"] = player_1.name
             round_over = True
             clear_board(board)
             pot = 0
-          elif com_decision == "call":
+          elif Bot_B_decision_2 == "call":
             player_2.chips -= (Bot_A_raise_amount - Bot_B_bet_amount) #has to call the amount raised by 
             pot += (Bot_A_raise_amount - Bot_B_bet_amount)
-            turn(cards = cards) #prints to the user the 3 cards for the flop + the turn
+            turn(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
             game_results_df.at[row_idx, "turn_card"] = board[3] #adds the flop cards to the dataframe
             game_results_df.at[row_idx, "postturn_potsize"] = pot
 
           #if the bot_B decides to re_raise the bot_A raise 
           else:
-            Bot_B_re_raise_amount = bot_B.get_re_raise_amount(opponent_bet_amount = Bot_A_raise_amount, hand_ranking = Bot_B_postflop_hand_ranking)
+            Bot_B_re_raise_amount = int(bot_B.get_re_raise_amount(opponent_bet_amount = Bot_A_raise_amount, hand_ranking = Bot_B_postflop_hand_ranking))
             game_results_df.at[row_idx, "postflop_Bot_B_re_raise_amount"] = Bot_B_re_raise_amount
             player_2.chips -= Bot_B_re_raise_amount
 
@@ -460,7 +478,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
             if Bot_A_decision_3 == "fold":
               player_2.chips += pot #bot_B wins the pot
-              clear_hand()
+              clear_hand(player_1 = player_1, player_2 = player_2)
               game_results_df.at[row_idx, "winnings"] = pot
               game_results_df.at[row_idx, "winner"] = player_2.name
               round_over = True
@@ -471,27 +489,27 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
             else:
               player_1.chips -= (Bot_B_re_raise_amount - Bot_A_raise_amount)
               pot += (Bot_B_re_raise_amount - Bot_A_raise_amount)
-              turn(cards = cards) #prints to the user the 3 cards for the flop + the turn
+              turn(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
               game_results_df.at[row_idx, "turn_card"] = board[3] #adds the flop cards to the dataframe
               game_results_df.at[row_idx, "postturn_potsize"] = pot
 
     #users leads with a bet when the flop appears
     else:
-      bot_A_bet_amount = bot_A.get_post_flop_bet_amount(pot = pot, hand_ranking = Bot_A_postflop_hand_ranking)
+      bot_A_bet_amount = int(bot_A.get_post_flop_bet_amount(pot = pot, hand_ranking = Bot_A_postflop_hand_ranking))
       game_results_df.at[row_idx, "postflop_Bot_A_bet"] = bot_A_bet_amount
       pot += bot_A_bet_amount
       player_1.chips -= bot_A_bet_amount
 
       #now bot_B has to respond to the users bet amount
-      Bot_B_postflop_decision = bot_B.get_post_flop_decision(board = board, opponent_post_flop_decision = Bot_A_postflop_decision)[0]
+      Bot_B_postflop_decision = bot_B.get_post_flop_decision(board = board, opponent_postflop_decision = Bot_A_postflop_decision)[0]
       game_results_df.at[row_idx, "postflop_Bot_B_decision"] = Bot_B_postflop_decision
 
-      Bot_B_postflop_hand_ranking = bot_B.get_post_flop_decision(board = board, opponent_post_flop_decision = Bot_A_postflop_decision)[1]
+      Bot_B_postflop_hand_ranking = bot_B.get_post_flop_decision(board = board, opponent_postflop_decision = Bot_A_postflop_decision)[1]
       game_results_df.at[row_idx, "postflop_Bot_B_hand_strength"]
 
       if Bot_B_postflop_decision == "fold":
         player_1.chips += pot #Bot A wins the pot
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
         game_results_df.at[row_idx, "winnings"] = pot
         game_results_df.at[row_idx, "winner"] = player_1.name
         round_over = True
@@ -501,7 +519,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
       elif Bot_B_postflop_decision == "call":
         player_2.chips -= bot_A_bet_amount
         pot += bot_A_bet_amount
-        turn(cards = cards) #prints to the user the 3 cards for the flop + the turn
+        turn(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
         game_results_df.at[row_idx, "turn_card"] = board[3] #adds the flop cards to the dataframe
         game_results_df.at[row_idx, "postturn_potsize"] = pot
 
@@ -517,7 +535,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_decision_2 == "fold":
           player_2.chips += pot #bot B wins the hand
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           round_over = True
@@ -528,7 +546,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
         else:
           player_1.chips -= (bot_B_raise_amount - bot_A_bet_amount)
           pot += (bot_B_raise_amount - bot_A_bet_amount)
-          turn(cards = cards) #prints to the user the 3 cards for the flop + the turn
+          turn(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
           game_results_df.at[row_idx, "turn_card"] = board[3] #adds the flop cards to the dataframe
           game_results_df.at[row_idx, "postturn_potsize"] = pot
 
@@ -548,20 +566,19 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
     if Bot_A_turn_decision == "check":
       #now bot_B gets the decision to check or bet
-      Bot_B_turn_decision = bot_B.get_turn_decision(opponent_post_flop_decision = Bot_A_postflop_decision)[0]
+      Bot_B_turn_decision = bot_B.get_turn_decision(opponent_post_flop_decision = Bot_A_postflop_decision, opponent_turn_decision = Bot_A_turn_decision, board = board)[0]
       game_results_df.at[row_idx, "turn_Bot_B_decision"] = Bot_B_turn_decision
 
-      Bot_B_turn_hand_strength = bot_B.get_turn_decision(opponent_post_flop_decision = Bot_A_postflop_decision)[1]
+      Bot_B_turn_hand_strength = bot_B.get_turn_decision(opponent_post_flop_decision = Bot_A_postflop_decision, opponent_turn_decision= Bot_A_turn_decision, board = board)[1]
       game_results_df.at[row_idx, "turn_Bot_B_hand_strength"] = Bot_B_turn_hand_strength
 
       #this is where bot B is responding to a check from bot A
       if Bot_B_turn_decision == "check":
-        river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+        river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
         game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-        game_results_df.at[row_idx, "postriver_potsize"] = pot
 
       #Bot B chooses to bet -- this means that bot_A can either respond with a fold, call, or raise
-      else:
+      else: #very interseting thing happened here check the function and update in bot_B.py
         Bot_B_turn_bet_amount = bot_B.get_post_turn_bet_amount(pot = pot, hand_ranking = Bot_B_turn_hand_strength)
         game_results_df.at[row_idx, "turn_Bot_B_bet"] = Bot_B_turn_bet_amount
         player_2.chips -= Bot_B_turn_bet_amount
@@ -572,7 +589,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_turn_decision_2 == "fold":
           player_2.chips += pot #bot b wins the pot
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           round_over = True
@@ -582,9 +599,8 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
         elif Bot_A_turn_decision_2 == "call":
           player_1.chips -= Bot_B_turn_bet_amount
           pot += Bot_B_turn_bet_amount
-          river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+          river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
           game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-          game_results_df.at[row_idx, "postriver_potsize"] = pot
 
         #bot A decision is to raise in respond to the bet from bot B
         else:
@@ -599,7 +615,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
           if Bot_B_decision_2 == "fold":
             player_1.chips += pot
-            clear_hand()
+            clear_hand(player_1 = player_1, player_2 = player_2)
             game_results_df.at[row_idx, "winnings"] = pot
             game_results_df.at[row_idx, "winner"] = player_1.name
             round_over = True
@@ -609,9 +625,8 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
           elif Bot_B_decision_2 == "call":
             player_2.chips -= (Bot_A_turn_raise_amount - Bot_B_turn_bet_amount)
             pot += (Bot_A_turn_raise_amount - Bot_B_turn_bet_amount)
-            river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+            river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
             game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-            game_results_df.at[row_idx, "postriver_potsize"] = pot
 
           #if the com decides to re_raise
           else:
@@ -625,7 +640,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
             if bot_A_turn_decision_3 == "fold": 
               player_2.chips += pot #bot b wins the pot
-              clear_hand()
+              clear_hand(player_1 = player_1, player_2 = player_2)
               game_results_df.at[row_idx, "winnings"] = pot
               game_results_df.at[row_idx, "winner"] = player_2.name
               round_over = True
@@ -636,14 +651,13 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
             else:
               player_1.chips -= (Bot_B_turn_re_raise_amount - Bot_A_turn_raise_amount)
               pot += (Bot_B_turn_re_raise_amount - Bot_A_turn_raise_amount)
-              river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+              river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
               game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-              game_results_df.at[row_idx, "postriver_potsize"] = pot
 
     #bot A leads out on the turn with a bet
     else:
       bot_A_turn_bet_amount = bot_A.get_post_turn_bet_amount(pot = pot, hand_ranking = Bot_A_turn_hand_ranking)
-      game_results_df.at[row_idx, "turn_user_bet"] = bot_A_turn_bet_amount
+      game_results_df.at[row_idx, "turn_Bot_A_bet"] = bot_A_turn_bet_amount
       pot += bot_A_turn_bet_amount
       player_1.chips -= bot_A_turn_bet_amount
 
@@ -656,7 +670,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
       if Bot_B_turn_decision == "fold":
         player_1.chips += pot
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
         game_results_df.at[row_idx, "winnings"] = pot
         game_results_df.at[row_idx, "winner"] = player_1.name
         round_over = True
@@ -666,9 +680,8 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
       elif Bot_B_turn_decision == "call":
         player_2.chips -= bot_A_turn_bet_amount
         pot += bot_A_turn_bet_amount
-        river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+        river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
         game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-        game_results_df.at[row_idx, "postriver_potsize"] = pot
 
       #Bot B decides to raise Bot A's bet
       else:
@@ -683,7 +696,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_turn_decision_2 == "fold":
           player_2.chips += pot
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           round_over = True
@@ -693,9 +706,8 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
         else:
           player_1.chips -= (Bot_B_turn_raise_amount - bot_A_turn_bet_amount)
           pot += (Bot_B_turn_raise_amount - bot_A_turn_bet_amount)
-          river(cards = cards) #prints to the user the 3 cards for the flop + the turn
+          river(cards = cards, board = board) #prints to the user the 3 cards for the flop + the turn
           game_results_df.at[row_idx, "river_card"] = board[4] #adds the flop cards to the dataframe
-          game_results_df.at[row_idx, "postriver_potsize"] = pot
 
 
 #-------------------------------------------------------------------------------------------------------------------#
@@ -724,7 +736,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
       if Bot_B_river_decision == "check":
         #NEED TO UPDATE THIS FUNCTION IN ENGINE HELPERS | NOW SET TO USER AND COM
-        determine_winner(players = players, board= board, pot = pot, row_idx = row_idx) #functionality built to determine which player has a stronger hand
+        determine_winner(players = players, board= board, pot = pot, row_idx = row_idx, dataframe = game_results_df) #functionality built to determine which player has a stronger hand
         clear_board(board)
 
       #if bot_B chooses to bet here's how much they will bet and bot A's response
@@ -739,7 +751,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_river_decision_2 == "fold":
           player_2.chips += pot #bot b wins without a showdown
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           clear_board(board)
@@ -749,24 +761,24 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
           pot += Bot_B_river_bet_amount
 
           #now the winner will be determined via showdown
-          determine_winner(players = players, board= board, pot = pot, row_idx = row_idx)
+          determine_winner(players = players, board= board, pot = pot, row_idx = row_idx, dataframe = game_results_df)
           clear_board(board)
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
 
         #Bot a raises Bot B's bet on the river representing a huge hand or a bluff
         else:
-          Bot_A_river_raise_amount = bot_A.get_re_raise_amount(opponenet_bet_amount = Bot_B_river_bet_amount, hand_ranking = Bot_A_river_hand_ranking)
+          Bot_A_river_raise_amount = bot_A.get_re_raise_amount(opponent_bet_amount = Bot_B_river_bet_amount, hand_ranking = Bot_A_river_hand_ranking)
           game_results_df.at[row_idx, "river_Bot_A_raise_amount"] = Bot_A_river_raise_amount
           pot += Bot_A_river_raise_amount
           player_1.chips -= Bot_A_river_raise_amount
 
           #now the Bot_B needs to respond to the users raise
-          Bot_B_river_decision_2 = bot_B.get_post_river_decision_2(board = board) #inside the function bot b has no option to raise currently 
+          Bot_B_river_decision_2 = bot_B.get_post_river_decision_2(board = board)[0] #inside the function bot b has no option to raise currently 
           game_results_df.at[row_idx, "river_Bot_B_decision_2"] = Bot_B_river_decision_2
 
           if Bot_B_river_decision_2 == "fold":
             player_1.chips += pot #bot a wins without a showdown
-            clear_hand()
+            clear_hand(player_1 = player_1, player_2 = player_2)
             game_results_df.at[row_idx, "winnings"] = pot
             game_results_df.at[row_idx, "winner"] = player_1.name
             clear_board(board)
@@ -775,9 +787,9 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
             player_2.chips -= (Bot_A_river_raise_amount - Bot_B_river_bet_amount)
             pot += (Bot_A_river_raise_amount - Bot_B_river_bet_amount)
             #here comes the showdown
-            determine_winner(players = players, board= board, pot = pot, row_idx = row_idx)
+            determine_winner(players = players, board= board, pot = pot, row_idx = row_idx, dataframe = game_results_df)
             clear_board(board)
-            clear_hand()
+            clear_hand(player_1 = player_1, player_2 = player_2)
 
           #if Bot_B decides to re_raise which is currently not programmed in
           else:
@@ -786,12 +798,12 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
             player_2.chips -= Bot_B_river_re_raise_amount
 
             #now the user can make a decision in response to the re-raise
-            Bot_A_decision_3 = bot_A.get_post_river_decision_2(board = board)
+            Bot_A_decision_3 = bot_A.get_post_river_decision_2(board = board)[0]
             game_results_df.at[row_idx, "river_Bot_A_decision_3"] = Bot_A_decision_3
 
             if Bot_A_decision_3 == "fold":
               player_2.chips += pot #bot b wins the pot without a showdown
-              clear_hand()
+              clear_hand(player_1 = player_1, player_2 = player_2)
               game_results_df.at[row_idx, "winnings"] = pot
               game_results_df.at[row_idx, "winner"] = player_2.name
               clear_board(board)
@@ -801,9 +813,9 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
               player_1.chips -= (Bot_B_river_re_raise_amount- Bot_A_river_raise_amount)
               pot += (Bot_B_river_re_raise_amount- Bot_A_river_raise_amount)
              #here comes the showdown
-              determine_winner(players = players, board= board, pot = pot, row_idx = row_idx)
+              determine_winner(players = players, board= board, pot = pot, row_idx = row_idx, dataframe = game_results_df)
               clear_board(board)
-              clear_hand()
+              clear_hand(player_1 = player_1, player_2 = player_2)
 
     #Bot A leads with a bet
     else:
@@ -814,7 +826,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
       #now Bot B has to respond to Bot A's bet amount
       Bot_B_river_decision = bot_B.get_river_decision(board = board, opponent_post_flop_decision = Bot_A_postflop_decision, opponent_post_turn_decision = Bot_A_turn_decision, opponent_post_river_decision = Bot_A_river_decision)[0]
-      game_results_df.at[row_idx, "river_computer_decision"] = Bot_B_river_decision
+      game_results_df.at[row_idx, "river_Bot_B_decision"] = Bot_B_river_decision
 
       #adding bot b's river hand ranking to the dataframe
       Bot_B_river_hand_strength = bot_B.get_river_decision(board = board, opponent_post_flop_decision = Bot_A_postflop_decision, opponent_post_turn_decision = Bot_A_turn_decision, opponent_post_river_decision = Bot_A_river_decision)[1]
@@ -822,7 +834,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
       if Bot_B_river_decision == "fold":
         player_1.chips += pot
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
         game_results_df.at[row_idx, "winnings"] = pot
         game_results_df.at[row_idx, "winner"] = player_1.name
         clear_board(board)
@@ -831,9 +843,9 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
         player_2.chips -= Bot_A_river_bet_amount
         pot += Bot_A_river_bet_amount
         #here comes the showdown
-        determine_winner(players = players, board= board, pot = pot, row_idx=row_idx)
+        determine_winner(players = players, board= board, pot = pot, row_idx=row_idx, dataframe = game_results_df)
         clear_board(board)
-        clear_hand()
+        clear_hand(player_1 = player_1, player_2 = player_2)
 
       #Bot_B decides to raise bot_A's bet
       else:
@@ -848,7 +860,7 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
 
         if Bot_A_river_decision_2 == "fold":
           player_2.chips += pot #bot b wins the pot without a showdown
-          clear_hand()
+          clear_hand(player_1 = player_1, player_2 = player_2)
           game_results_df.at[row_idx, "winnings"] = pot
           game_results_df.at[row_idx, "winner"] = player_2.name
           clear_board(board)
@@ -858,7 +870,6 @@ def gameflow(player_1 = bot_A, player_2 = bot_B):
           player_1.chips -= (bot_B_river_raise_amount - Bot_A_river_bet_amount)
           pot += (bot_B_river_raise_amount - Bot_A_river_bet_amount)
           #here comes the showdown
-          determine_winner(players = players, board= board, pot = pot, row_idx=row_idx)
+          determine_winner(players = players, board= board, pot = pot, row_idx=row_idx, dataframe = game_results_df)
           clear_board(board)
-          clear_hand()
-
+          clear_hand(player_1 = player_1, player_2 = player_2)

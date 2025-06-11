@@ -59,9 +59,9 @@ class PokerBot_A:
       if random_number >= 90:
         preflop_decision = "raise"
       elif random_number >= 15:
-        preflop_decision = "fold"
-      else:
         preflop_decision = "call"
+      else:
+        preflop_decision = "fold"
 
     return preflop_decision, strength
 
@@ -91,7 +91,7 @@ class PokerBot_A:
       preflop_decision_2 = "call"
     else:
       random_number = random.randint(1, 100)
-      if random_number >= 50:
+      if random_number >= 30:
         preflop_decision_2 = "call"
       else:
         preflop_decision_2 = "fold"

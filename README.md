@@ -1,4 +1,4 @@
-# ♠️ Poker AI Simulation Engine for No-Limit Hold’em ♣️
+# Poker AI Simulation Engine for No-Limit Hold’em ♣️
 
 ### Overview
 This is a solo-developed simulation engine designed to model complete hands of No-Limit Texas Hold’em poker. It focuses on building an adaptable environment for AI agents to play, learn, and compete against each other with the goal of evolving toward intelligent, real-time strategy.

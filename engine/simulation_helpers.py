@@ -71,7 +71,7 @@ def prettify_hand(hand):
     pretty_cards = []
     for card in hand:
         rank, suit = card
-        rank_str = str(rank) if rank <= 10 else rank[rank_map]
+        rank_str = str(rank) if rank <= 10 else rank_map[rank]
         suit_str = suit_map[suit]
         pretty_cards.append(f"{rank_str}{suit_str}")
     

@@ -20,7 +20,6 @@ If only one player remains, they immediately win the pot
 
 ## Data and Learning Pipeline
 The long-term value of this engine is its ability to generate high-quality decision data at scale. Once all game stages are implemented, each decision will be recorded with relevant context:
-
 Hole cards, board texture, and position
 Pot size, player chip stacks, and required call amounts
 Equity estimates and pot odds

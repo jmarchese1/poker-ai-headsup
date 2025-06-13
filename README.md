@@ -1,9 +1,7 @@
 # Poker AI Simulation Engine for No-Limit Hold’em ♣️
 
 ## Overview
-This is a solo-developed simulation engine designed to model complete hands of No-Limit Texas Hold’em poker. It focuses on building an adaptable environment for AI agents to play, learn, and compete against each other with the goal of evolving toward intelligent, real-time strategy.
-
-The codebase is built for flexibility. It starts with structured, rule-based decision making and is designed to scale into full machine learning and reinforcement learning integrations. Every part of the logic is crafted to support future development, data generation, and training pipelines.
+This is a solo-developed simulation engine designed to model complete hands of No-Limit Texas Hold’em poker. It focuses on building an adaptable environment for AI agents to play, learn, and compete against each other with the goal of evolving toward intelligent, real-time strategy. The codebase is built for flexibility. It starts with structured, rule-based decision making and is designed to scale into full machine learning and reinforcement learning integrations. Every part of the logic is crafted to support future development, data generation, and training pipelines.
 
 ## Project Vision
 This project is not just about simulating a game. The vision is to create a poker engine where bots begin by following simple rules and eventually grow into agents that adapt to opponents, identify patterns, and change their play accordingly. The long-term goal is to build an AI that blends sound game theory with the ability to exploit suboptimal behavior. Starting with consistent rule-based systems, the engine will generate large datasets, which can then be used to train supervised models. These models will be refined with reinforcement learning to pursue long-term profit and strategic edge.

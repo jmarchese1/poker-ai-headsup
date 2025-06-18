@@ -5,14 +5,28 @@ def get_hand_strength(card1, card2):
     """
     Given two cards (rank, suit), returns the preflop strength rating (0-10).
     """
+
+    #dictionary of hand strength ranks
     HAND_STRENGTH_RANKS = {
+        # Tier 10: Premium
         'AA': 10, 'KK': 10, 'QQ': 10, 'JJ': 10, 'AKs': 10, 'AKo': 10,
-        'TT': 9, 'AQs': 9, 'AJs': 9, 'KQs': 9, 'AQo': 9,
-        '99': 8, 'ATs': 8, 'KJs': 8, 'QJs': 8, 'KQo': 8, 'AJo': 8,
-        '88': 7, '77': 7, '66': 7, '55': 7, '44': 7, '33': 7, '22': 7,
-        'JTs': 7, 'T9s': 7, '98s': 7, '87s': 7, '76s': 7, '65s': 7, '54s': 7,
-        'KJo': 6, 'QJo': 6, 'A9s': 6, 'A8s': 6, 'A7s': 6, 'KTs': 6, 'QTs': 6, 'J9s': 6,
-        # Default for all others will be 0
+        # Tier 9: Very Strong
+        'TT': 9, 'AQs': 9, 'AJs': 9, 'KQs': 9, 'AQo': 9, 'KJs': 9,
+        # Tier 8: Strong Playable
+        '99': 8, 'ATs': 8, 'AJo': 8, 'KQo': 8, 'QJs': 8, 'JTs': 8, 'KTs': 8,
+        # Tier 7: Mid Pairs, Good Suited
+        '88': 7, '77': 7, '66': 7, 'A9s': 7, 'QTs': 7, 'J9s': 7, 'T9s': 7, '98s': 7, 'AJo': 7, 'KJo': 7,
+        # Tier 6: Low Pairs, Suited Connectors
+        '55': 6, '44': 6, '33': 6, '22': 6, 'A8s': 6, 'A7s': 6, 'KTo': 6, 'QJo': 6, '87s': 6, '76s': 6, '65s': 6,
+        # Tier 5: Marginal
+        'A6s': 5, 'A5s': 5, 'A4s': 5, 'K9s': 5, 'Q9s': 5, 'J8s': 5, 'T8s': 5, 'KJo': 5,
+        # Tier 4: Speculative
+        'A3s': 4, 'A2s': 4, '54s': 4, '43s': 4, 'K8s': 4, 'Q8s': 4, 'J7s': 4,
+        # Tier 3: Weak offsuit broadways
+        'ATo': 3, 'KTo': 3, 'QTo': 3, 'JTo': 3, 'A9o': 3, 'K9o': 3,
+        # Tier 2: weak playable hands
+        'T9o': 2, '98o': 2, '87o': 2, '76o': 2,
+        ##everythhing else is tier 0
     }
 
     rank1, suit1 = card1

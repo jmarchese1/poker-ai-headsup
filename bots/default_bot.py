@@ -46,97 +46,72 @@ class PokerBot:
         hand_strength = get_hand_strength(self.hand[0], self.hand[1])
         pot_odds = pot / call_amount if call_amount > 0 else float('inf')  # safety guard
 
-        # Early Position (tightest ranges)
+        # Early Position folds most hands
         if position in ["UTG", "MP"]:
-            if hand_strength >= 9:
+            if hand_strength >= 9: #not many hands this high
                 decision = "raise"
             elif hand_strength == 8:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
             elif hand_strength == 7:
                 decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
             elif hand_strength in [5, 6]:
-                decision = "call" if random.randint(1, 100) <= max(0, self.aggression_level - 30) else "fold"
+                decision = "call" if random.randint(1, 100) <= self.aggression_level - 10 else "fold"
+            elif hand_strength in [3, 4]:
+                decision = "call" if random.randint(1, 100) <= self.aggression_level - 20 else "fold"
             else:
-                decision = "fold"
+                #super aggressive players might call with trash hands here
+                decision = "call" if random.randint(1, 100) <= self.aggression_level - 80 else "fold"
 
-        # Middle Position (looser than EP)
+        # Middle Position looser than early positions
         elif position in ["HJ", "CO"]:
-            if hand_strength >= 9:
+            if hand_strength >= 8:
                 decision = "raise"
-            elif hand_strength == 8:
-                decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
             elif hand_strength == 7:
-                if pot_odds >= 2:
-                    decision = "call"
-                else:
-                    decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
-            elif hand_strength == 6:
-                if pot_odds >= 3:
-                    decision = "call"
-                else:
-                    decision = "fold"
-            elif hand_strength in [4, 5]:
-                if pot_odds >= 4 and random.randint(1, 100) <= max(0, self.aggression_level - 20):
-                    decision = "call"
-                else:
-                    decision = "fold"
-            else:
-                decision = "fold"
-
-        # Button (widest value range)
-        elif position == "BTN":
-            if hand_strength >= 9:
-                decision = "raise"
-            elif hand_strength in [7, 8]:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
-            elif hand_strength in [5, 6]:
-                if pot_odds >= 2.5:
-                    decision = "call"
-                else:
-                    decision = "fold"
-            elif hand_strength == 4:
-                if pot_odds >= 3 and random.randint(1, 100) <= max(0, self.aggression_level - 10):
-                    decision = "call"
-                else:
-                    decision = "fold"
+            elif hand_strength in [6, 7]:
+                decision = "raise" if random.randint(1, 100) <= self.agression_level - 10 else "call"
+            elif hand_strength in [4, 5]:
+                decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
+            elif hand_strength in [2, 3]:
+                decision = "call" if random.randint(1, 100) <= self.aggression_level - 10 else "fold"
             else:
-                decision = "fold"
+                decision = "call" if random.randint(1, 100) <= self.aggression_level - 20 else "fold"
 
-        # Small Blind (must always contribute half the blind)
+        # Button widest ranges, strongest position
+        elif position == "BTN":
+            if hand_strength >= 7: #raise strong hands on the button
+                decision = "raise"
+            elif hand_strength in [5, 6]:
+                decision = "raise" if random.ranint(1, 100) <= self.agression_level else "call"
+            elif hand_strength in [4, 3]:
+                decision = "raise" if random.randint(1, 100) <= self.aggression_level - 5 else "call"
+            elif hand_strength == 2:
+                decision = "raise" if random.randint(1, 100) <= self.agression_level - 15 else "call"
+            else:
+                decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
+                
+        # just slighlty tighter from the button
         elif position == "SB":
             if hand_strength >= 9:
                 decision = "raise"
             elif hand_strength == 8:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
             elif hand_strength in [6, 7]:
-                if pot_odds >= 2:
-                    decision = "call"
-                else:
-                    decision = "fold"
+                decision = "call" if random.randint(1, 100) >= self.aggression_level else "raise"
             elif hand_strength in [4, 5]:
-                if pot_odds >= 3:
-                    decision = "call"
-                else:
-                    decision = "fold"
+                decision = "call" if random.randint(1, 100) >= self.aggression_level + 10 else "raise" #makes it require more aggression to raise with a weaker hand
+            elif hand_strength in [1, 2, 3]:
+                decision = "call" if random.randint(1, 100) <= self.aggression_level + 20 else "fold"
             else:
-                decision = "fold"
+                decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
 
         # Big Blind (free check if no raise)
-        elif position == "BB":
-            if call_amount == 0:
-                decision = "check"
+        else: #position == BB
+            #whether the pot odds are high or low, good move to raise here at the big blind with a decent hand
+            if hand_strength >= 2:
+                decision = "raise" if random.randint(1, 100) <= self.aggression_level else "check"
             else:
-                if hand_strength >= 9:
-                    decision = "raise"
-                elif hand_strength in [7, 8]:
-                    decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
-                elif hand_strength in [5, 6]:
-                    decision = "call" if pot_odds >= 2.5 else "fold"
-                else:
-                    decision = "fold"
-
-        else:
-            decision = "fold"  # fallback case
+                decision = "check"
 
         return decision
 

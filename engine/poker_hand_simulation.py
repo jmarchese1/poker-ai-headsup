@@ -220,7 +220,10 @@ def game_flow(small_blind, big_blind):
                 if action != "raise":
                     preflop_information_2.append({"action": action, "player": player.name, "position": pos})
 
+# 1st postflop decisions
 
+    postflop_raiser_position = None #also using this variable to store inital postflop better
+    postflop_raise_or_bet = None
     #advance to the flop if the there are at least two players remaining
     if len(positions) - len(preflop_folded_positions) > 1:
 
@@ -234,7 +237,91 @@ def game_flow(small_blind, big_blind):
                         log["postflop_strength"] = evaluate_score(player.hand, board)
             else:
                 log["postflop_strength"] = None
-    
+
+        #the first postflop decision gives bots the option to check or bet. 
+        order = list(positions.keys())
+        new_order = order[5:] + order[:5] #makes sure the small blind is firsts to act and the button is last 
+        new_order = [pos for pos in new_order if pos not in preflop_folded_positions] #remove folded positions
+        player_contributions = [player.contribution for pos, player in positions.items() if pos not in preflop_folded_positions]
+        previous_better = False
+        for pos in new_order:
+            player_strength = evaluate_score(positions[pos].hand, board)
+            player = positions[pos]
+            action = player.decide_postflop(pot = pot, call_amt = max(player_contributions) - player.contribution, player_strength = player_strength, previous_better = previous_better)
+            if action == "check":
+                log_action(player_logs, player.name, "flop", "check", 0)
+            elif action == "bet":
+                roll = random.choice([20, 33, 50])
+                bet_amt = int(roll * pot / 100)
+                player.chips -= bet_amt
+                player.contribution += bet_amt
+                pot += bet_amt
+                log_action(player_logs, player.name, "flop", "bet", bet_amt)
+                postflop_raise_or_bet = "bet"
+                postflop_raiser_position = pos
+                break
+            else:
+                print(f"{player.name} made an invalid decision postflop_1")
+
+#2nd postflop decisions
+
+    #if there was a bet on the first postflop decision, or a raise on the second decision
+    if postflop_raiser_position:
+        loop_counter = 0
+        max_loops = 10
+        while not all_contributions_equal(positions, preflop_folded_positions):
+            if loop_counter >= max_loops:
+                print("Max postflop loops reached, breaking to avoid infinite loop.")
+                break
+            loop_counter += 1
+            order = list(positions.keys())
+            idx = order.index(postflop_raiser_position)
+            new_order = [pos for pos in (order[idx + 1:] + order[:idx]) if pos not in preflop_folded_positions]
+
+            #looping though each player to make thier decisions in response to the raiser
+            for pos in new_order:
+                player = positions[pos]
+                call_amt = positions[postflop_raiser_position].contribution - player.contribution 
+                player_strength = evaluate_score(player.hand, board) # gets the rank of the players hand from 1200 worst to 1, the best possible hand
+                action = player.decide_postflop_2(pot = pot, call_amt = call_amt, player_strength = player_strength, raise_or_bet = postflop_raise_or_bet)
+
+                if action == "fold":
+                    preflop_folded_positions.append(pos)
+                    log_action(player_logs, player.name, "postflop_2", "fold", 0)
+                    # Check if only one player remains
+                    if len(preflop_folded_positions) == len(positions) - 1:
+                        for remaining_pos in positions:
+                            if remaining_pos not in preflop_folded_positions:
+                                winner = positions[remaining_pos]
+                                winner.chips += pot
+                                for log in player_logs:
+                                    if log["player_name"] == winner.name:
+                                        log["chips_won"] = pot
+                                        print(f"{winner.name} wins the pot of {pot} chips postflop.")
+                                break
+
+                elif action == "call":
+                    player.chips -= call_amt
+                    player.contribution += call_amt
+                    pot += call_amt
+                    log_action(player_logs, player.name, "postflop_2", "call", call_amt)
+                    cold_callers.append(player)
+                elif action == "raise":
+                    raise_amt = ((3 * positions[raiser_position].contribution) + (len(cold_callers) * big_blind))
+                    player.chips -= raise_amt
+                    player.contribution += raise_amt
+                    pot += raise_amt
+                    log_action(player_logs, player.name, "postflop_2", "raise", raise_amt)
+                    raiser_position = pos
+                    preflop_information_2.append({"action": "raise", "player": player.name, "position": pos})
+                    postflop_raise_or_bet = "raise"
+                    break
+                else:
+                    print(f"Invalid action by {player.name} at {pos}")
+
+                if action != "raise":
+                    preflop_information_2.append({"action": action, "player": player.name, "position": pos})
+
     df_this_hand = pd.DataFrame(player_logs)
     results_df = pd.concat([results_df, df_this_hand], ignore_index=True)
 

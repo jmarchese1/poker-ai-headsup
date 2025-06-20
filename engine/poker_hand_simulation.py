@@ -12,13 +12,17 @@ for p in sys.path:
 #path to cloned repository
 root = r"C:\Users\jason\projects\poker_project\poker-ai-headsup"
 
-#added path to sys.path[0]
+#added path to sys.path[0] -- allows for importing custom functions
 if root not in sys.path:
     sys.path.insert(0, root)
 
 #importing custom packages
-from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal
+from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score
 from bots.default_bot import PokerBot
+
+#confiuring pandas display options
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
 
 
 #-----------------------------------------------------------------#
@@ -33,28 +37,56 @@ from bots.default_bot import PokerBot
 
 
 #creating a list of bots to have different play styles based on the agression level
-Atlas = PokerBot(name = "Atlas", aggression_level = 20)
-Blair = PokerBot(name = "Blair", aggression_level = 30)
-Cruz = PokerBot(name = "Cruz", aggression_level = 40)
-Drew = PokerBot(name = "Drew", aggression_level = 50)
-Ember = PokerBot(name = "Ember", aggression_level = 60)
-Flint = PokerBot(name = "Flint", aggression_level = 70)
-Gio = PokerBot(name = "Gio", aggression_level = 80)
+Atlas = PokerBot(name = "Atlas", aggression_level = 40)
+Blair = PokerBot(name = "Blair", aggression_level = 50)
+Cruz = PokerBot(name = "Cruz", aggression_level = 60)
+Drew = PokerBot(name = "Drew", aggression_level = 70)
+Ember = PokerBot(name = "Ember", aggression_level = 80)
+Flint = PokerBot(name = "Flint", aggression_level = 90)
+Gio = PokerBot(name = "Gio", aggression_level = 100)
 
 #creating a list of players to be used in the game
-players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Gio]
+players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Gio]         
 
+#creating a dataframe to track decision making and results
+results_df = pd.DataFrame(columns = [])
+hand_counter = 1 #track the number of hands played
 
+def init_player_logs(hand_id, positions):
+    logs = []
+    for pos, player in positions.items():
+        logs.append({
+            "hand_id": hand_id,
+            "player_name": player.name,
+            "position": pos,
+            "hole_cards": player.hand,
+            "preflop_strength" : get_hand_strength(player.hand[0], player.hand[1]),
+            "folded": False,
+            "went_to_showdown": False,
+            "final_contribution": 0,
+            "chips_won": 0
+    })
+    return logs
+
+def log_action(logs, player_name, street, action, amount=0):
+    for log in logs:
+        if log["player_name"] == player_name:
+            log[f"{street}_action"] = action
+            log[f"{street}_bet"] = amount
+            log["final_contribution"] += amount
+            if action == "fold":
+                log["folded"] = True
+            break
 
 def game_flow(small_blind, big_blind):
-    
-    #taking in the global players to update the rotation each time the function runs
-    global players
+    global players, results_df, hand_counter
 
-    #this rotates the list of players clockwise
-    players = players[-1:] + players[:-1] 
+    players = players[-1:] + players[:-1]  # rotate players clockwise
 
-    #assigning each player to the correct position for the hand
+    #resetting the player contributions from the previous hand
+    for p in players:
+        p.contribution = 0   
+
     positions = {
         "UTG": players[0],
         "MP": players[1],
@@ -65,161 +97,152 @@ def game_flow(small_blind, big_blind):
         "BB": players[6]
     }
 
-    #create and deal the deck 
-    setup_deck_and_deal(players = players)
+    hand_id = hand_counter
+    hand_counter += 1
 
-    #the board will stay the same until the end of the hand as cards get added on the flop, turn and, river
-    board = [] 
-    #the pot will grow until the hand is over and is given to the winner
-    pot = 0 
+    deck = setup_deck_and_deal(players=players)  # assigns .hole_cards to each bot
 
-    #assuming small blind and big blind are parameters, add the blinds to sb and bb contribution and to the pot, and remove them from the players stacks
-    small_blind = small_blind 
-    big_blind = big_blind # ^^
+    board = []
+    pot = 0
+    preflop_information = []
+    preflop_folded_positions = []
+    raiser_position = None
 
-    positions["SB"].contribution += small_blind 
+    player_logs = init_player_logs(hand_id, positions)
+
+    # Post blinds
+    positions["SB"].contribution += small_blind
     positions["SB"].chips -= small_blind
 
     positions["BB"].contribution += big_blind
     positions["BB"].chips -= big_blind
 
+
     pot += small_blind + big_blind
 
-    #Important variables:
-    preflop_information = [] #list of dictionaries
-    #preflop_actions = [d["action"] for d in preflop_information] #create a list of just the actions from the dictionary
-    preflop_folded_positions = [] #track players that folded used throughout the full hand
-    raiser_position = None #track which player decied to raise most recently
-
-    #-----------------------------------------------------------------#
-    #                       First preflop decisions                   #
-    #-----------------------------------------------------------------#
-
+    # First Preflop Loop
     for position, player in positions.items():
-            
-            #track the number of limpers into the pot to get raise amounts
-            num_limpers = sum(1 for d in preflop_information if d["action"] == "call")
 
-            #get an action choice from the bots
-            action = player.decide_preflop(
-                position = position,
-                pot=pot,
-                call_amount = big_blind - player.contribution
-                )
-            
-            #adjust pot, chips, contributions and raise amounts based on decisions
-            if action == "fold":
-                preflop_folded_positions.append(position) # add player to list of folded players
-                #determine if a player won preflop by the other six players folding
-                if len(preflop_folded_positions) == len(positions) - 1:
-                    for position in list(positions.keys()):
-                        if position not in preflop_folded_positions:
-                            winner = positions[position] #index positions on the position not in the folded positions
-                            winner.chips += pot
-                            break #break the loop once a winner is found 
+        num_limpers = sum(1 for d in preflop_information if d["action"] == "call")
+        call_amt = big_blind - player.contribution
+        action = player.decide_preflop(position, pot, call_amt)
 
-            elif action == "call":
-                call_amount = big_blind - player.contribution #this line works for each position including blinds
-                #updating pot, stack sizes, and player contributions from thier call amounts
-                pot += call_amount 
-                player.chips -= call_amount 
-                player.contribution += call_amount
+        if action == "fold":
+            preflop_folded_positions.append(position)
+            log_action(player_logs, player.name, "preflop", "fold", 0)
+            # Check if only one player remains
+            if len(preflop_folded_positions) == len(positions) - 1:
+                for remaining_pos in positions:
+                    if remaining_pos not in preflop_folded_positions:
+                        winner = positions[remaining_pos]
+                        winner.chips += pot
+                        for log in player_logs:
+                            if log["player_name"] == winner.name:
+                                log["chips_won"] = pot
+                                print(f"{winner.name} wins the pot of {pot} chips preflop.")
+                        break
 
-            elif action == "raise":
-                #randomly raises 2 or 3 big blinds plus an additional big blind for each limper
-                raise_amount = ((random.choice([2, 3]) * big_blind) + (num_limpers * big_blind))
-                pot += raise_amount
-                player.chips -= raise_amount
-                raiser_position = position #this variable helps reset the order of action post raise
-                player.contribution += raise_amount
-                #adding the raisers info to the dictionary
-                preflop_information.append({"action" : action,
-                                        "player" : player.name,
-                                        "position" : position})
-                break #breaking the loop and proceeding to stage 2 preflop action
+        elif action == "call":
+            pot += call_amt
+            player.chips -= call_amt
+            player.contribution += call_amt
+            log_action(player_logs, player.name, "preflop", "call", call_amt if position != "SB" else call_amt + small_blind)
+        elif action == "raise":
+            raise_amt = ((random.choice([2, 3]) * big_blind) + (num_limpers * big_blind))
+            pot += raise_amt
+            player.chips -= raise_amt
+            player.contribution += raise_amt
+            log_action(player_logs, player.name, "preflop", "raise", raise_amt)
+            raiser_position = position
+            preflop_information.append({"action": "raise", "player": player.name, "position": position})
+            break
+        else:
+            #log the action of the big blind
+            log_action(player_logs, player.name, "preflop", "check", big_blind)
 
-            else:
-                print("One of the players did not choose a valid action.") #simplify debugging
-            
-            if action != "raise":
-            #adding fold and call player information to the dictionary
-                preflop_information.append({"action" : action,
-                                    "player" : player.name,
-                                    "position" : position})
+        if action != "raise":
+            preflop_information.append({"action": action, "player": player.name, "position": position})
 
-    #-----------------------------------------------------------------#
-    #                  Additional preflop decisions                   #
-    #-----------------------------------------------------------------#
-    
-    if raiser_position != None:
+    # Second Preflop Loop (if a raise occurred)
 
-        # creating a list to store preflop information for the second stage of betting 
-        preflop_information_2 = [] 
-        game_on = True
-        while not all_contributions_equal(positions=positions, folded = preflop_folded_positions):
-            order = list(positions.keys()) #turns the current order above into a list from the first preflop decision 
-            raiser_index = order.index(raiser_position) #get the index of the previous raiser
-            new_order = order[raiser_index + 1:] + order[0:raiser_index + 1] #start action from the player after the previous raiser
-            new_order = [pos for pos in new_order if pos not in preflop_folded_positions] #removing players that folded their cards from the action
-            preflop_actions_2 = [d["action"] for d in preflop_information_2] #list of just the actions that occured this round
-            cold_callers = [] #track the number of cold callers each round for raise sizings
+    if raiser_position:
+        loop_counter = 0
+        max_loops = 10
+        preflop_information_2 = []
+        while not all_contributions_equal(positions, preflop_folded_positions):
+            if loop_counter >= max_loops:
+                print("Max preflop loops reached, breaking to avoid infinite loop.")
+                break
+            loop_counter += 1
+            order = list(positions.keys())
+            idx = order.index(raiser_position)
+            new_order = [pos for pos in (order[idx+1:] + order[:idx]) if pos not in preflop_folded_positions]
+            cold_callers = []
 
-            for position in new_order:
+            for pos in new_order:
+                player = positions[pos]
+                call_amt = positions[raiser_position].contribution - player.contribution
+                action = player.decide_preflop_2(pos, pot, call_amt)
 
-                action = positions[position].decide_preflop_2( 
-                        position = position,
-                        pot = pot,
-                        call_amount = positions[raiser_position].contribution - positions[position].contribution
-                        )
-                
-                #updating pot, chip stacks, player contributions, folded players
                 if action == "fold":
-                    preflop_folded_positions.append(position) #adding players to be removed from the hand
-                    #determining if a player one the hand by folds
+                    preflop_folded_positions.append(pos)
+                    log_action(player_logs, player.name, "preflop_2", "fold", 0)
+                    # Check if only one player remains
                     if len(preflop_folded_positions) == len(positions) - 1:
-                        for position in list(positions.keys()):
-                            if position not in preflop_folded_positions:
-                                winner = positions[position]
+                        for remaining_pos in positions:
+                            if remaining_pos not in preflop_folded_positions:
+                                winner = positions[remaining_pos]
                                 winner.chips += pot
+                                for log in player_logs:
+                                    if log["player_name"] == winner.name:
+                                        log["chips_won"] = pot
+                                        print(f"{winner.name} wins the pot of {pot} chips preflop.")
                                 break
 
                 elif action == "call":
-                    #this works for the blinds too because their contributions of the blinds are already accounted for 
-                    call_amount = positions[raiser_position].contribution - positions[position].contribution #players must call the difference between the raisers contribution and their contribution
-                    #updating variables
-                    pot += call_amount
-                    positions[position].chips -= call_amount
-                    positions[position].contribution += call_amount
-                    cold_callers.append(positions[position])
-
+                    player.chips -= call_amt
+                    player.contribution += call_amt
+                    pot += call_amt
+                    log_action(player_logs, player.name, "preflop_2", "call", call_amt)
+                    cold_callers.append(player)
                 elif action == "raise":
-                    #get the number of limpers into the pot
-                    raise_amount = ((3 * positions[raiser_position].contribution) + (len(cold_callers) * big_blind))
-                    pot += raise_amount
-                    positions[position].chips -= raise_amount
-                    raiser_position = position
-                    positions[position].contribution += raise_amount
-                    #adding the raisers information to the dictionary
-                    preflop_information_2.append({"action" : action,
-                                            "player" : positions[position].name,
-                                            "position" : position})
+                    raise_amt = ((3 * positions[raiser_position].contribution) + (len(cold_callers) * big_blind))
+                    player.chips -= raise_amt
+                    player.contribution += raise_amt
+                    pot += raise_amt
+                    log_action(player_logs, player.name, "preflop_2", "raise", raise_amt)
+                    raiser_position = pos
+                    preflop_information_2.append({"action": "raise", "player": player.name, "position": pos})
                     break
                 else:
-                    print("One of the players did not choose a valid action.")
-                
+                    print(f"Invalid action by {player.name} at {pos}")
+
                 if action != "raise":
-                #adding the folds and calls to the dictionary
-                    preflop_information_2.append({"action" : action,
-                                        "player" : positions[position].name,
-                                        "position" : position})
-                    
-    return preflop_information, preflop_information_2 if raiser_position else []
+                    preflop_information_2.append({"action": action, "player": player.name, "position": pos})
 
-            
 
-results = game_flow(small_blind = 5, big_blind = 10)
-results
+    #advance to the flop if the there are at least two players remaining
+    if len(positions) - len(preflop_folded_positions) > 1:
 
-#every bot is getting a unique hand and nothing is breaking, however decision making is not clear and needs to be tested 
+        #flop -- the flop cards do not matter as much to the dataframe as the hand standings postflop
+        board.extend([deck.pop(), deck.pop(), deck.pop()])
+        print(f"The flop is: {prettify_hand(board)}")
+        for log in player_logs:
+            if not log["folded"]:
+                for player in positions.values():
+                    if player.name == log["player_name"]:
+                        log["postflop_strength"] = evaluate_score(player.hand, board)
+            else:
+                log["postflop_strength"] = None
+    
+    df_this_hand = pd.DataFrame(player_logs)
+    results_df = pd.concat([results_df, df_this_hand], ignore_index=True)
 
-#need to program in logic where the bigblind is able to check preflop and has unique decision making options
+    return df_this_hand
+
+#now need a function for the remaining players to make thier postflop decisions
+
+
+
+game_flow(small_blind=5, big_blind=10)
+

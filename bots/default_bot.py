@@ -212,19 +212,68 @@ class PokerBot:
 
         return decision
     
-    def decide_postflop(self, position, pot, call_amount, board):
+    def decide_postflop(self, pot, call_amt, player_strength, previous_better=None):
         """
         Bot's postflop action.
         Inputs:
-            - position: table position string (e.g., 'UTG', 'MP', etc.)
+            - call amount: determines how much the player would need to call following a bet
+            - previous better: determines the decision path of the bot's actions
             - pot: current size of the pot
-            - call_amount: how much this player must contribute to call
-            - board: list of cards on the board
+            - player_strength: strength of the player's hand compared to all possible hands with the board
         Uses:
             - aggression_level: how loose/aggressive this bot plays
             - hand_strength: derived from private hand and board
         """
-        # Placeholder for actual postflop logic
-        # This should be implemented based on the bot's strategy and hand strength
-        return "check"
+        #pot odds can be used when deciding to call or not 
+        pot_odds = pot / call_amt if call_amt > 0 else float('inf')
+        #the options are to bet or check
+        if not previous_better:
+            if player_strength <= 50: #super strong hand
+                decision = "bet" if self.aggression_level + 20 >= random.randint(1, 100) else "check"
+            elif player_strength <= 200:
+                decision = "bet" if self.aggression_level + 10 >= random.randint(1, 100) else "check"
+            elif player_strength <= 350:
+                decision = "bet" if self.aggression_level >= random.randint(1, 100) else "check"
+            elif player_strength  <= 500:
+                decision = "bet" if self.aggression_level - 15 >= random.ranint(1, 100) else "check"
+            else: #complete bluffs
+                decision = "bet" if self.aggression_level - 75 >= random.randint(1, 100) else "check"
+        
+        #someone bet before this player now the options are to call, raise, or fold
+        else:
+            if pot_odds >= 3: #great odds any equity can justify calling
+                if player_strength <= 150:
+                    decision = "raise" if self.aggression_level >= random.randint(1, 100) else "call"
+                elif player_strength <= 500 and player_strength >= 150:
+                    decision = "call" if self.aggression_level + 25 > random.randint(1, 100) else "fold"
+                else:
+                    decision = "call" if self.aggression_level - 10 > random.randint(1, 100) else "fold"
+            
 
+            else: #poor pot odds only strong hands contine
+                if player_strength <= 20: #top hands likely raise
+                    decision = "raise" if self.aggression_level >= random.randint(1, 100) else "call"
+                elif player_strength <= 200 and player_strength >= 20:
+                    decision = "call" if self.aggression_level + 40 >= random.randint(1, 100) else "fold"
+                elif player_strength >= 200 and player_strength <= 400:
+                    decision = "call" if self.aggression_level + 20 >= random.randint(1, 100) else "fold"
+                else: #almost always folds except most aggressive players
+                    decision = "call" if self.aggression_level - 85 > random.randint(1, 100) else "fold"
+        
+        return decision
+    
+    def decided_preflop_2(self, pot, call_amt, player_strength):
+        """
+        Bots second postflop action in response to a raise in the postflop decisions
+        Inputs:
+            pot - the current size of the pot
+            call_amt - How many chips it requires for a bot to call the raise 
+            player_strength - How strong is the players hand in relation to the board
+        Returns:
+            decision - The bots choice to either call, raise,  or fold based on the 
+            inputs and the bots aggression level.
+        """
+
+        
+            
+        

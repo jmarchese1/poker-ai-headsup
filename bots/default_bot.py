@@ -69,7 +69,7 @@ class PokerBot:
             elif hand_strength == 7:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
             elif hand_strength in [6, 7]:
-                decision = "raise" if random.randint(1, 100) <= self.agression_level - 10 else "call"
+                decision = "raise" if random.randint(1, 100) <= self.aggression_level - 10 else "call"
             elif hand_strength in [4, 5]:
                 decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
             elif hand_strength in [2, 3]:
@@ -82,11 +82,11 @@ class PokerBot:
             if hand_strength >= 7: #raise strong hands on the button
                 decision = "raise"
             elif hand_strength in [5, 6]:
-                decision = "raise" if random.ranint(1, 100) <= self.agression_level else "call"
+                decision = "raise" if random.ranint(1, 100) <= self.aggression_level else "call"
             elif hand_strength in [4, 3]:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level - 5 else "call"
             elif hand_strength == 2:
-                decision = "raise" if random.randint(1, 100) <= self.agression_level - 15 else "call"
+                decision = "raise" if random.randint(1, 100) <= self.aggression_level - 15 else "call"
             else:
                 decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
                 
@@ -118,6 +118,9 @@ class PokerBot:
 
     def decide_preflop_2(self, position, pot, call_amount):
         """
+        This decision only occurs if another player has decided to raise preflop.
+        Since its following a raise, there is no option to check
+
         Inputs: 
         position : current player position
         pot : total pot size before decision
@@ -131,13 +134,14 @@ class PokerBot:
         pot_odds = pot / call_amount if call_amount > 0 else float('inf')
         roll = random.randint(1, 100)
 
+        #note: all strong hands decided to limp preflop here
         if position in ["UTG", "MP"]:
             if hand_strength >= 10:
                 decision = "raise" if self.aggression_level >= roll else "call"
             elif hand_strength == 9:
                 decision = "raise" if self.aggression_level - 20 >= roll else "call"
             elif hand_strength in [7, 8]:
-                if pot_odds >= 5:
+                if pot_odds >= 4:
                     decision = "call"
                 else:
                     decision = "call" if self.aggression_level >= roll else "fold"
@@ -207,4 +211,20 @@ class PokerBot:
             decision = "fold"  # default fallback
 
         return decision
+    
+    def decide_postflop(self, position, pot, call_amount, board):
+        """
+        Bot's postflop action.
+        Inputs:
+            - position: table position string (e.g., 'UTG', 'MP', etc.)
+            - pot: current size of the pot
+            - call_amount: how much this player must contribute to call
+            - board: list of cards on the board
+        Uses:
+            - aggression_level: how loose/aggressive this bot plays
+            - hand_strength: derived from private hand and board
+        """
+        # Placeholder for actual postflop logic
+        # This should be implemented based on the bot's strategy and hand strength
+        return "check"
 

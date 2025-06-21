@@ -5,43 +5,32 @@ def get_hand_strength(card1, card2):
     """
     Given two cards (rank, suit), returns the preflop strength rating (0-10).
     """
-
-    #dictionary of hand strength ranks
     HAND_STRENGTH_RANKS = {
-        # Tier 10: Premium
         'AA': 10, 'KK': 10, 'QQ': 10, 'JJ': 10, 'AKs': 10, 'AKo': 10,
-        # Tier 9: Very Strong
         'TT': 9, 'AQs': 9, 'AJs': 9, 'KQs': 9, 'AQo': 9, 'KJs': 9,
-        # Tier 8: Strong Playable
         '99': 8, 'ATs': 8, 'AJo': 8, 'KQo': 8, 'QJs': 8, 'JTs': 8, 'KTs': 8,
-        # Tier 7: Mid Pairs, Good Suited
         '88': 7, '77': 7, '66': 7, 'A9s': 7, 'QTs': 7, 'J9s': 7, 'T9s': 7, '98s': 7, 'AJo': 7, 'KJo': 7,
-        # Tier 6: Low Pairs, Suited Connectors
         '55': 6, '44': 6, '33': 6, '22': 6, 'A8s': 6, 'A7s': 6, 'KTo': 6, 'QJo': 6, '87s': 6, '76s': 6, '65s': 6,
-        # Tier 5: Marginal
         'A6s': 5, 'A5s': 5, 'A4s': 5, 'K9s': 5, 'Q9s': 5, 'J8s': 5, 'T8s': 5, 'KJo': 5,
-        # Tier 4: Speculative
         'A3s': 4, 'A2s': 4, '54s': 4, '43s': 4, 'K8s': 4, 'Q8s': 4, 'J7s': 4,
-        # Tier 3: Weak offsuit broadways
         'ATo': 3, 'KTo': 3, 'QTo': 3, 'JTo': 3, 'A9o': 3, 'K9o': 3,
-        # Tier 2: weak playable hands
         'T9o': 2, '98o': 2, '87o': 2, '76o': 2,
-        ##everythhing else is tier 0
     }
+
+    # Map ranks to characters
+    def rank_to_char(rank):
+        return {14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T'}.get(rank, str(rank))
 
     rank1, suit1 = card1
     rank2, suit2 = card2
 
-    # Normalize the hand key (e.g., AKs, QJo, 77)
     suited = suit1 == suit2
     ranks = sorted([rank1, rank2], reverse=True)
+    r1, r2 = rank_to_char(ranks[0]), rank_to_char(ranks[1])
 
-    if rank1 == rank2:
-        key = f"{ranks[0]}{ranks[1]}"  # e.g., 'QQ'
-    else:
-        key = f"{ranks[0]}{ranks[1]}{'s' if suited else 'o'}"  # e.g., 'AKs', 'KQo'
+    key = f"{r1}{r2}{'s' if suited else 'o'}" if rank1 != rank2 else f"{r1}{r2}"
 
-    return HAND_STRENGTH_RANKS.get(key, 0)  # 0 = lowest strength
+    return HAND_STRENGTH_RANKS.get(key, 0)
 
 def setup_deck_and_deal(players):
     """
@@ -98,13 +87,14 @@ import itertools
 
 def highest_straight(ranks):
     """Determine straight and the strength of the high card"""
-    uniq = sorted(set(ranks))
-    if 14 in uniq:                       # Ace can play low
-        uniq.append(1)
+    uniq = list(set(ranks))
+    if 14 in uniq:
+        uniq.append(1)  # Ace can also be low
+    uniq = sorted(uniq)
     for i in range(len(uniq) - 4):
         window = uniq[i:i+5]
         if window == list(range(window[0], window[0] + 5)):
-            return window[-1]            # high card of straight
+            return window[-1]  # high card of straight
     return None
 
 def highest_straight_flush(cards):

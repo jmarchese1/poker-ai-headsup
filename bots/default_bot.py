@@ -82,7 +82,7 @@ class PokerBot:
             if hand_strength >= 7: #raise strong hands on the button
                 decision = "raise"
             elif hand_strength in [5, 6]:
-                decision = "raise" if random.ranint(1, 100) <= self.aggression_level else "call"
+                decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
             elif hand_strength in [4, 3]:
                 decision = "raise" if random.randint(1, 100) <= self.aggression_level - 5 else "call"
             elif hand_strength == 2:
@@ -212,7 +212,7 @@ class PokerBot:
 
         return decision
     
-    def decide_postflop(self, pot, call_amt, player_strength, previous_better=None):
+    def decide_postflop(self, pot, call_amt, player_strength):
         """
         Bot's postflop action.
         Inputs:
@@ -227,20 +227,61 @@ class PokerBot:
         #pot odds can be used when deciding to call or not 
         pot_odds = pot / call_amt if call_amt > 0 else float('inf')
         #the options are to bet or check
-        if not previous_better:
-            if player_strength <= 50: #super strong hand
-                decision = "bet" if self.aggression_level + 20 >= random.randint(1, 100) else "check"
-            elif player_strength <= 200:
-                decision = "bet" if self.aggression_level + 10 >= random.randint(1, 100) else "check"
-            elif player_strength <= 350:
-                decision = "bet" if self.aggression_level >= random.randint(1, 100) else "check"
-            elif player_strength  <= 500:
-                decision = "bet" if self.aggression_level - 15 >= random.ranint(1, 100) else "check"
-            else: #complete bluffs
-                decision = "bet" if self.aggression_level - 75 >= random.randint(1, 100) else "check"
+        if player_strength <= 50: #super strong hand
+            decision = "bet" if self.aggression_level + 20 >= random.randint(1, 100) else "check"
+        elif player_strength <= 200:
+            decision = "bet" if self.aggression_level + 10 >= random.randint(1, 100) else "check"
+        elif player_strength <= 350:
+            decision = "bet" if self.aggression_level >= random.randint(1, 100) else "check"
+        elif player_strength  <= 500:
+            decision = "bet" if self.aggression_level - 15 >= random.randint(1, 100) else "check"
+        else: #complete bluffs
+            decision = "bet" if self.aggression_level - 75 >= random.randint(1, 100) else "check"
         
-        #someone bet before this player now the options are to call, raise, or fold
-        else:
+
+        
+        return decision
+    
+    def decide_postflop_2(self, pot, call_amt, player_strength, raise_or_bet):
+        """
+        Bots second postflop action in response to a raise in the postflop decisions
+        Inputs:
+            pot - the current size of the pot
+            call_amt - How many chips it requires for a bot to call the raise 
+            player_strength - How strong is the players hand in relation to the board
+        Returns:
+            decision - The bots choice to either call, raise,  or fold based on the 
+            inputs and the bots aggression level.
+        """
+        #setting pot odds
+        pot_odds = pot / call_amt
+
+        #this means the bot is responding a raise after the inital bet
+        if raise_or_bet == "raise":
+
+            if pot_odds >= 5: #easy to call getting 6:1 odds or better
+                if player_strength <= 10:
+                    decision = "raise"
+                elif player_strength <= 250 and player_strength >= 10:
+                    decision = "call"
+                elif player_strength <=400 and player_strength >= 250:
+                    decision = "call" if self.aggression_level > random.randint(1, 100) else "fold"
+                else:
+                    roll = random.randint(1, 100)
+                    if self.aggression_level - 70 >= roll:
+                        decision = "raise" #opportunity for aggressive players to completely bluff
+                    else:
+                        decision = "fold"
+                    
+            
+            else: #the raise starts to look very strong and bots should be cautious
+                if player_strength <= 20:
+                    decision = "call"
+                else:
+                    decision = "fold"
+
+        else: #this means the bot is making a resonse to the intial c-bet
+
             if pot_odds >= 3: #great odds any equity can justify calling
                 if player_strength <= 150:
                     decision = "raise" if self.aggression_level >= random.randint(1, 100) else "call"
@@ -261,19 +302,8 @@ class PokerBot:
                     decision = "call" if self.aggression_level - 85 > random.randint(1, 100) else "fold"
         
         return decision
-    
-    def decided_preflop_2(self, pot, call_amt, player_strength):
-        """
-        Bots second postflop action in response to a raise in the postflop decisions
-        Inputs:
-            pot - the current size of the pot
-            call_amt - How many chips it requires for a bot to call the raise 
-            player_strength - How strong is the players hand in relation to the board
-        Returns:
-            decision - The bots choice to either call, raise,  or fold based on the 
-            inputs and the bots aggression level.
-        """
 
-        
+
+
+                
             
-        

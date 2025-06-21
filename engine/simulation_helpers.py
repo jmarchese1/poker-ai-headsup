@@ -80,7 +80,7 @@ def prettify_hand(hand):
     hand - provide player.hand to be converted to more readable format 
     """
     rank_map = {11: 'J', 12: 'Q', 13: 'K', 14: 'A'}
-    suit_map = {1: '♠', 2: '♥', 3: '♦', 4: '♣'}
+    suit_map = {1: '♠️', 2: '♥️', 3: '♦️', 4: '♣️'}    
 
     pretty_cards = []
     for card in hand:

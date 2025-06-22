@@ -1,93 +1,54 @@
 # ♣️ Poker AI Simulation Engine for No-Limit Hold’em
 
-## 🧠 Overview
 This is a solo-developed simulation engine designed to model complete hands of No-Limit Texas Hold’em. The system serves as a foundation for building AI agents that start with rule-based decision making and progress toward adaptive, learning-based strategies. It is built from the ground up with modularity, data generation, and machine learning in mind.
 
 ## 🎯 Project Vision
-The goal isn’t just to simulate poker — it’s to create a learning environment for intelligent agents. Bots begin by following structured strategic rules based on position, pot odds, and hand strength. As the simulation scales, these bots will:
-
-Learn from outcomes using supervised learning,
-
-Adapt through opponent modeling,
-
-And eventually evolve via reinforcement learning to maximize long-term EV (expected value).
-
-By simulating thousands of hands and logging every meaningful decision, this engine generates the high-quality data required to train future poker-playing agents.
+The goal isn’t just to simulate poker, it’s to create a learning environment for intelligent agents. Bots begin by following structured strategic rules based on position, pot odds, and hand strength. As the simulation scales, these bots will:
+Learn from outcomes using supervised learning, Adapt through opponent modeling, And eventually evolve via reinforcement learning to maximize long-term EV (expected value).By simulating thousands of hands and logging every meaningful decision, this engine generates the high-quality data required to train future poker-playing agents.
 
 ## 🤖 Bot Architecture
 Each bot is an instance of a shared class, parameterized by:
-
 Aggression level
-
 Tightness range
-
 Bluffing tendency
-
 Bots make decisions using:
-
 Position (UTG to BB),
-
 Hand strength tiers,
-
 Pot odds & board context,
-
 And (coming soon) opponent history.
-
 This setup allows simulation of varied playing styles — from hyper-aggressive bluffers to tight-passive grinders — essential for generating realistic training data.
 
 ## 🔁 Game Flow
 The engine currently supports full-ring (7-player) gameplay with real poker logic:
-
 Rotating positions each hand
-
 Blinds posting automatically
-
 Decision flow: fold, call, raise (with logical loops)
-
 Pots resolved after all contributions are equal
-
 Chip stacks dynamically updated
-
 Automatic showdown handling and winner determination (coming soon)
-
 Each phase — preflop, flop, turn, river, and showdown — is modular and extensible for future logic and strategy layers.
 
 ## 📊 Data Generation & ML Pipeline
 A core objective is producing structured, labeled data for model training. Each hand logs:
-
 Bot identity and personality traits (aggression, tightness, bluffing)
-
 Hole cards and board texture
-
 Pot size, chip stacks, bet sizes, and call amounts
-
 Hand strength estimates and pot odds
-
 Actions taken (fold, call, raise, bet)
-
 Final outcome (win/loss and amount)
 
-All logs are saved in Pandas DataFrames and exported as .csv files — ready for:
-
+All logs are saved in Pandas DataFrames and exported as .csv files, ready for:
 Supervised learning (e.g., classify actions)
-
 Regression (e.g., predict bet sizes or EV)
-
 Reinforcement learning pipelines (policy improvement, deep Q-learning, etc.)
 
 ## 🚀 What’s Next
 Add street-by-street logic for flop, turn, river
-
 Implement board-aware hand strength evaluations
-
 Expand postflop logic and incorporate board texture (e.g., wet/dry boards)
-
 Build a logging engine to track hand-level decisions and results
-
 Integrate bluffing logic and opponent modeling
-
 Create adaptive bots that respond dynamically to opponent behavior
-
 Begin training simple ML models to classify player actions
 
 ## 🛠 Tech Stack

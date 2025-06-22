@@ -52,9 +52,8 @@ Begin training simple ML models to classify player actions
 
 ## 🛠 Tech Stack
 Python 3.8+
-
-Core: pandas, numpy, random
-
+custom simulation functions
+Core: pandas, numpy, random, itertools
 ML Ready: scikit-learn, PyTorch
 
 ## 👨‍💻 About This Project

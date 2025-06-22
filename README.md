@@ -36,7 +36,6 @@ Pot size, chip stacks, bet sizes, and call amounts
 Hand strength estimates and pot odds
 Actions taken (fold, call, raise, bet)
 Final outcome (win/loss and amount)
-
 All logs are saved in Pandas DataFrames and exported as .csv files, ready for:
 Supervised learning (e.g., classify actions)
 Regression (e.g., predict bet sizes or EV)

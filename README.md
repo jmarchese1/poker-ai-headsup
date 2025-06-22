@@ -1,4 +1,4 @@
-# ♣️ Poker AI Simulation & Reinforcement Learning Engine
+# Poker AI Simulation & Reinforcement Learning Engine
 
 Designed and implemented a modular poker simulation environment from scratch, enabling AI agents to learn and evolve through reinforcement learning. Built multi-agent systems with distinct playing styles (tight, loose, aggressive, passive) and a full decision pipeline from preflop to river. Created structured datasets for supervised learning and developed RL agents that outperformed rule-based bots over thousands of hands. Demonstrated strong foundations in game theory, adversarial ML, and simulation environments.
 

@@ -51,9 +51,9 @@ Create adaptive bots that respond dynamically to opponent behavior
 Begin training simple ML models to classify player actions
 
 ## 🛠 Tech Stack
-Python 3.8+
-custom simulation functions
-Core: pandas, numpy, random, itertools
+Python 3.8+ |
+custom simulation functions |
+Core: pandas, numpy, random, itertools |
 ML Ready: scikit-learn, PyTorch
 
 ## 👨‍💻 About This Project

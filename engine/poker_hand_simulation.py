@@ -17,7 +17,7 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 #importing custom packages
-from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score
+from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score, resolve_side_pots
 from bots.default_bot import PokerBot
 
 #confiuring pandas display options
@@ -38,13 +38,13 @@ pd.set_option('display.width', 1000)
 
 
 #creating a list of bots to have different play styles based on the agression level
-Atlas = PokerBot(name = "Atlas", aggression_level = 40)
-Blair = PokerBot(name = "Blair", aggression_level = 50)
-Cruz = PokerBot(name = "Cruz", aggression_level = 60)
-Drew = PokerBot(name = "Drew", aggression_level = 70)
-Ember = PokerBot(name = "Ember", aggression_level = 80)
-Flint = PokerBot(name = "Flint", aggression_level = 90)
-Gio = PokerBot(name = "Gio", aggression_level = 100)
+Atlas = PokerBot(name = "Atlas", chips = 2000, aggression_level = 20, tightness_level = 1, bluffing_factor = 7)
+Blair = PokerBot(name = "Blair", chips = 2000, aggression_level = 30, tightness_level = 1, bluffing_factor = 10)
+Cruz = PokerBot(name = "Cruz", chips = 2000, aggression_level = 40, tightness_level = 2, bluffing_factor = 13)
+Drew = PokerBot(name = "Drew", chips = 2000,aggression_level = 50, tightness_level = 2, bluffing_factor = 16,)
+Ember = PokerBot(name = "Ember", chips = 2000, aggression_level = 60, tightness_level = 2, bluffing_factor = 19)
+Flint = PokerBot(name = "Flint", chips = 2000, aggression_level = 70, tightness_level = 3, bluffing_factor = 22)
+Gio = PokerBot(name = "Gio", chips = 2000, aggression_level = 80, tightness_level = 3, bluffing_factor = 25)
 
 #creating a list of players to be used in the game
 players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Gio]         
@@ -62,6 +62,11 @@ def init_player_logs(hand_id, positions):
             "position": pos,
             "hole_cards": player.hand,
             "preflop_strength" : get_hand_strength(player.hand[0], player.hand[1]),
+            "aggression_level" : player.aggression_level,
+            "tightness_level" : player.tightness_level,
+            "bluffing_factor" : player.bluffing_factor,
+            "starting_stack" : player.chips,
+            "refills" : player.refills, #how many times a bot topped off its stack
             "folded": False,
             "went_to_showdown": False,
             "final_contribution": 0,
@@ -87,6 +92,11 @@ def game_flow(small_blind, big_blind):
     #resetting the player contributions from the previous hand
     for p in players:
         p.contribution = 0   
+        p.all_in = False
+
+    for p in players: #refill the players stack after they go all in or run out of bigblinds
+        if p.chips <= big_blind:
+            p.refill_chips()
 
     positions = {
         "UTG": players[0],
@@ -120,7 +130,6 @@ def game_flow(small_blind, big_blind):
 
 
     pot += small_blind + big_blind
-
     # First Preflop Loop
     for position, player in positions.items():
 
@@ -140,20 +149,33 @@ def game_flow(small_blind, big_blind):
                         for log in player_logs:
                             if log["player_name"] == winner.name:
                                 log["chips_won"] = pot
-                                print(f"{winner.name} wins the pot of {pot} chips preflop.")
+                                print(f"{winner.name} wins the pot of {pot} chips preflop 💰.")
                         break
 
         elif action == "call":
-            pot += call_amt
-            player.chips -= call_amt
-            player.contribution += call_amt
-            log_action(player_logs, player.name, "preflop", "call", call_amt if position != "SB" else call_amt + small_blind)
+            #how to handle if the player needs to call more than the chips in thier stack
+            if call_amt > player.chips:
+                actual_call = player.chips
+                player.all_in = True
+            else:
+                actual_call = call_amt
+
+            pot += actual_call
+            player.chips -= actual_call
+            player.contribution += actual_call
+            log_action(player_logs, player.name, "preflop", "call", actual_call if position != "SB" else actual_call + small_blind)
         elif action == "raise":
             raise_amt = ((random.choice([2, 3]) * big_blind) + (num_limpers * big_blind))
-            pot += raise_amt
-            player.chips -= raise_amt
-            player.contribution += raise_amt
-            log_action(player_logs, player.name, "preflop", "raise", raise_amt)
+            if raise_amt >= player.chips:
+                actual_raise = player.chips
+                player.all_in = True
+                print(f"{player.name} went all in for {actual_raise} chips")
+            else:
+                actual_raise = raise_amt
+            pot += actual_raise
+            player.chips -= actual_raise
+            player.contribution += actual_raise
+            log_action(player_logs, player.name, "preflop", "raise", actual_raise)
             raiser_position = position
             preflop_information.append({"action": "raise", "player": player.name, "position": position})
             break
@@ -197,21 +219,32 @@ def game_flow(small_blind, big_blind):
                                 for log in player_logs:
                                     if log["player_name"] == winner.name:
                                         log["chips_won"] = pot
-                                        print(f"{winner.name} wins the pot of {pot} chips preflop.")
+                                        print(f"{winner.name} wins the pot of {pot} chips preflop 💰.")
                                 break
 
                 elif action == "call":
-                    player.chips -= call_amt
-                    player.contribution += call_amt
-                    pot += call_amt
-                    log_action(player_logs, player.name, "preflop_2", "call", call_amt)
+                    if call_amt > player.chips:
+                        player.all_in = True
+                        actual_call = player.chips
+                    else:
+                        actual_call = call_amt
+                    player.chips -= actual_call
+                    player.contribution += actual_call
+                    pot += actual_call
+                    log_action(player_logs, player.name, "preflop_2", "call", actual_call)
                     cold_callers.append(player)
                 elif action == "raise":
                     raise_amt = ((3 * positions[raiser_position].contribution) + (len(cold_callers) * big_blind))
-                    player.chips -= raise_amt
-                    player.contribution += raise_amt
-                    pot += raise_amt
-                    log_action(player_logs, player.name, "preflop_2", "raise", raise_amt)
+                    if raise_amt > player.chips:
+                        actual_raise = player.chips
+                        player.all_in = True
+                        print(f"{player.name} went all in for {actual_raise} chips")
+                    else:
+                        actual_raise = raise_amt
+                    player.chips -= actual_raise
+                    player.contribution += actual_raise
+                    pot += actual_raise
+                    log_action(player_logs, player.name, "preflop_2", "raise", actual_raise)
                     raiser_position = pos
                     preflop_information_2.append({"action": "raise", "player": player.name, "position": pos})
                     break
@@ -245,7 +278,7 @@ def game_flow(small_blind, big_blind):
         new_order = order[5:] + order[:5] #makes sure the small blind is firsts to act and the button is last 
         new_order = [pos for pos in new_order if pos not in preflop_folded_positions] #remove folded positions
         player_contributions = [player.contribution for pos, player in positions.items() if pos not in preflop_folded_positions]
-        for pos in new_order:
+        for pos in [p for p in new_order if not positions[p].all_in]:
             player_strength = evaluate_score(positions[pos].hand, board)
             player = positions[pos]
             action = player.decide_postflop(pot = pot, call_amt = max(player_contributions) - player.contribution, player_strength = player_strength)
@@ -255,10 +288,16 @@ def game_flow(small_blind, big_blind):
             elif action == "bet":
                 roll = random.choice([20, 33, 50])
                 bet_amt = int(roll * pot / 100)
-                player.chips -= bet_amt
-                player.contribution += bet_amt
-                pot += bet_amt
-                log_action(player_logs, player.name, "postflop", "bet", bet_amt)
+                if bet_amt >= player.chips:
+                    actual_bet = player.chips
+                    player.all_in = True
+                    print(f"{player.name} is all in for {actual_bet}")
+                else:
+                    actual_bet = bet_amt
+                player.chips -= actual_bet
+                player.contribution += actual_bet
+                pot += actual_bet
+                log_action(player_logs, player.name, "postflop", "bet", actual_bet)
                 postflop_raise_or_bet = "bet"
                 postflop_raiser_position = pos
                 break
@@ -281,7 +320,7 @@ def game_flow(small_blind, big_blind):
             new_order = [pos for pos in (order[idx + 1:] + order[:idx]) if pos not in preflop_folded_positions]
 
             #looping though each player to make thier decisions in response to the raiser
-            for pos in new_order:
+            for pos in [p for p in new_order if not positions[p].all_in]:
                 player = positions[pos]
                 call_amt = positions[postflop_raiser_position].contribution - player.contribution 
                 player_strength = evaluate_score(player.hand, board) # gets the rank of the players hand from 1200 worst to 1, the best possible hand
@@ -300,21 +339,33 @@ def game_flow(small_blind, big_blind):
                                 for log in player_logs:
                                     if log["player_name"] == winner.name:
                                         log["chips_won"] = pot
-                                        print(f"{winner.name} wins the pot of {pot} chips postflop.")
+                                        print(f"{winner.name} wins the pot of {pot} chips postflop 💰.")
                                 break
 
                 elif action == "call":
-                    player.chips -= call_amt
-                    player.contribution += call_amt
-                    pot += call_amt
-                    log_action(player_logs, player.name, "postflop_2", "call", call_amt)
+                    if call_amt >= player.chips:
+                        actual_call = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_call}")
+                    else:
+                        actual_call = call_amt
+                    player.chips -= actual_call
+                    player.contribution += actual_call
+                    pot += actual_call
+                    log_action(player_logs, player.name, "postflop_2", "call", actual_call)
                     cold_callers.append(player)
                 elif action == "raise":
                     raise_amt = ((3 * positions[postflop_raiser_position].contribution) + (len(cold_callers) * big_blind))
-                    player.chips -= raise_amt
-                    player.contribution += raise_amt
-                    pot += raise_amt
-                    log_action(player_logs, player.name, "postflop_2", "raise", raise_amt)
+                    if raise_amt >= player.chips:
+                        actual_raise = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_raise}")
+                    else:
+                        actual_raise = raise_amt
+                    player.chips -= actual_raise
+                    player.contribution += actual_raise
+                    pot += actual_raise
+                    log_action(player_logs, player.name, "postflop_2", "raise", actual_raise)
                     postflop_raiser_position = pos
                     postflop_raise_or_bet = "raise"
                     break
@@ -328,7 +379,7 @@ def game_flow(small_blind, big_blind):
     turn_checks = []
     #advance to the flop if the there are at least two players remaining
     
-    if len(postflop_checks) == len([pos for pos in positions.keys() if pos not in preflop_folded_positions]) or len(positions) - len(preflop_folded_positions) > 1:
+    if len(positions) - len(preflop_folded_positions) > 1:
         #turn
         board.extend([deck.pop()])
         print(f"The board after the turn shows: {prettify_hand(board)}")
@@ -345,7 +396,7 @@ def game_flow(small_blind, big_blind):
         new_order = order[5:] + order[:5] #makes sure the small blind is firsts to act and the button is last 
         new_order = [pos for pos in new_order if pos not in preflop_folded_positions] #remove folded positions
         player_contributions = [player.contribution for pos, player in positions.items() if pos not in preflop_folded_positions]
-        for pos in new_order:
+        for pos in [p for p in new_order if not positions[p].all_in]:
             player_strength = evaluate_score(positions[pos].hand, board)
             player = positions[pos]
             #replace with designated turn function
@@ -356,10 +407,16 @@ def game_flow(small_blind, big_blind):
             elif action == "bet":
                 roll = random.choice([20, 30, 40])
                 bet_amt = int(roll * pot / 100)
-                player.chips -= bet_amt
-                player.contribution += bet_amt
-                pot += bet_amt
-                log_action(player_logs, player.name, "turn", "bet", bet_amt)
+                if bet_amt >= player.chips:
+                    actual_bet = player.chips
+                    player.all_in = True
+                    print(f"{player.name} is all in for {actual_bet}")
+                else:
+                    actual_bet = bet_amt
+                player.chips -= actual_bet
+                player.contribution += actual_bet
+                pot += actual_bet
+                log_action(player_logs, player.name, "turn", "bet", actual_bet)
                 turn_raise_or_bet = "bet"
                 turn_raiser_position = pos
                 break
@@ -382,7 +439,7 @@ def game_flow(small_blind, big_blind):
             new_order = [pos for pos in (order[idx + 1:] + order[:idx]) if pos not in preflop_folded_positions]
 
             #looping though each player to make thier decisions in response to the raiser
-            for pos in new_order:
+            for pos in [p for p in new_order if not positions[p].all_in]: #all in player doesn't need to make a decision
                 player = positions[pos]
                 call_amt = positions[turn_raiser_position].contribution - player.contribution 
                 player_strength = evaluate_score(player.hand, board) # gets the rank of the players hand from 1200 worst to 1, the best possible 
@@ -401,20 +458,32 @@ def game_flow(small_blind, big_blind):
                                 for log in player_logs:
                                     if log["player_name"] == winner.name:
                                         log["chips_won"] = pot
-                                        print(f"{winner.name} wins the pot of {pot} on the turn.")
+                                        print(f"{winner.name} wins the pot of {pot} on the turn 💰.")
                                 break
                 elif action == "call":
-                    player.chips -= call_amt
-                    player.contribution += call_amt
-                    pot += call_amt
-                    log_action(player_logs, player.name, "turn_2", "call", call_amt)
+                    if call_amt >= player.chips:
+                        actual_call = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_call}")
+                    else:
+                        actual_call = call_amt
+                    player.chips -= actual_call
+                    player.contribution += actual_call
+                    pot += actual_call
+                    log_action(player_logs, player.name, "turn_2", "call", actual_call)
                     cold_callers.append(player)
                 elif action == "raise":
                     raise_amt = ((3 * positions[turn_raiser_position].contribution) + (len(cold_callers) * big_blind))
-                    player.chips -= raise_amt
-                    player.contribution += raise_amt
-                    pot += raise_amt
-                    log_action(player_logs, player.name, "turn_2", "raise", raise_amt)
+                    if raise_amt >= player.chips:
+                        actual_raise = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_raise}")
+                    else:
+                        actual_raise = raise_amt
+                    player.chips -= actual_raise
+                    player.contribution += actual_raise
+                    pot += actual_raise
+                    log_action(player_logs, player.name, "turn_2", "raise", actual_raise)
                     turn_raiser_position = pos
                     turn_raise_or_bet = "raise"
                     break
@@ -428,10 +497,10 @@ def game_flow(small_blind, big_blind):
     river_checks = []
     #advance to the flop if the there are at least two players remaining
     
-    if len(postflop_checks) == len([pos for pos in positions.keys() if pos not in preflop_folded_positions]) or len(positions) - len(preflop_folded_positions) > 1:
+    if len(positions) - len(preflop_folded_positions) > 1:
         #river board extension
         board.extend([deck.pop()])
-        print(f"The board after the turn shows: {prettify_hand(board)}")
+        print(f"The board after the river shows: {prettify_hand(board)}")
         for log in player_logs:
             if not log["folded"]:
                 for player in positions.values():
@@ -445,7 +514,7 @@ def game_flow(small_blind, big_blind):
         new_order = order[5:] + order[:5] #makes sure the small blind is firsts to act and the button is last 
         new_order = [pos for pos in new_order if pos not in preflop_folded_positions] #remove folded positions
         player_contributions = [player.contribution for pos, player in positions.items() if pos not in preflop_folded_positions]
-        for pos in new_order:
+        for pos in [p for p in new_order if not positions[p].all_in]:
             player_strength = evaluate_score(positions[pos].hand, board)
             player = positions[pos]
             #replace with designated turn function
@@ -456,10 +525,16 @@ def game_flow(small_blind, big_blind):
             elif action == "bet":
                 roll = random.choice([20, 30, 40, 75])
                 bet_amt = int(roll * pot / 100)
-                player.chips -= bet_amt
-                player.contribution += bet_amt
-                pot += bet_amt
-                log_action(player_logs, player.name, "river", "bet", bet_amt)
+                if bet_amt >= player.chips:
+                    actual_bet = player.chips
+                    player.all_in = True
+                    print(f"{player.name} is all in for {actual_bet}")
+                else:
+                    actual_bet = bet_amt
+                player.chips -= actual_bet
+                player.contribution += actual_bet
+                pot += actual_bet
+                log_action(player_logs, player.name, "river", "bet", actual_bet)
                 river_raise_or_bet = "bet"
                 river_raiser_position = pos
                 break
@@ -482,7 +557,7 @@ def game_flow(small_blind, big_blind):
             new_order = [pos for pos in (order[idx + 1:] + order[:idx]) if pos not in preflop_folded_positions]
 
             #looping though each player to make thier decisions in response to the raiser
-            for pos in new_order:
+            for pos in [p for p in new_order if not positions[p].all_in]:
                 player = positions[pos]
                 call_amt = positions[river_raiser_position].contribution - player.contribution 
                 player_strength = evaluate_score(player.hand, board) # gets the rank of the players hand from 1200 worst to 1, the best possible 
@@ -501,20 +576,32 @@ def game_flow(small_blind, big_blind):
                                 for log in player_logs:
                                     if log["player_name"] == winner.name:
                                         log["chips_won"] = pot
-                                        print(f"{winner.name} wins the pot of {pot} on the turn.")
+                                        print(f"{winner.name} wins the pot of {pot} on the river 💰.")
                                 break
                 elif action == "call":
-                    player.chips -= call_amt
-                    player.contribution += call_amt
-                    pot += call_amt
-                    log_action(player_logs, player.name, "river_2", "call", call_amt)
+                    if call_amt >= player.chips:
+                        actual_call = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_call}")
+                    else:
+                        actual_call = call_amt
+                    player.chips -= actual_call
+                    player.contribution += actual_call
+                    pot += actual_call
+                    log_action(player_logs, player.name, "river_2", "call", actual_call)
                     cold_callers.append(player)
                 elif action == "raise":
                     raise_amt = ((3 * positions[river_raiser_position].contribution) + (len(cold_callers) * big_blind))
-                    player.chips -= raise_amt
-                    player.contribution += raise_amt
-                    pot += raise_amt
-                    log_action(player_logs, player.name, "river_2", "raise", raise_amt)
+                    if raise_amt >= player.chips:
+                        actual_raise = player.chips
+                        player.all_in = True
+                        print(f"{player.name} is all in for {actual_raise}")
+                    else:
+                        actual_raise = raise_amt
+                    player.chips -= actual_raise
+                    player.contribution += actual_raise
+                    pot += actual_raise
+                    log_action(player_logs, player.name, "river_2", "raise", actual_raise)
                     river_raiser_position = pos
                     river_raise_or_bet = "raise"
                     break
@@ -524,33 +611,66 @@ def game_flow(small_blind, big_blind):
     #RIVER SHOWDOWN
     remaining_positions = [pos for pos in positions.keys() if pos not in preflop_folded_positions]
     if len(remaining_positions) > 1:
-        hand_strengths = {}
-        for pos in remaining_positions:
-            hand_strength = evaluate_score(positions[pos].hand, board)
-            hand_strengths[pos] = hand_strength
-            best_rank = min(hand_strengths.values())  # Lower is better
-        winners = [pos for pos, rank in hand_strengths.items() if rank == best_rank]
-
-        pot_share = pot // len(winners)
-
-        for pos in winners:
-            winner = positions[pos]
-            winner.chips += pot_share
-            print(f"{winner.name} wins {pot_share} chips at showdown.")
-
-            for log in player_logs:
-                if log["player_name"] == winner.name:
-                    log["chips_won"] = pot_share
-                    log["went_to_showdown"] = True
-
-        # Log went_to_showdown = False for folded players
-        for log in player_logs:
-            if log["player_name"] not in [positions[p].name for p in winners]:
-                log.setdefault("went_to_showdown", False)
+        player_logs = resolve_side_pots(positions = positions, folded_positions = preflop_folded_positions, board= board, player_logs= player_logs)
 
     df_this_hand = pd.DataFrame(player_logs)
+
+    # Reorder columns
+    desired_column_order = [
+        "hand_id", "player_name", "position", "hole_cards",
+        "preflop_strength", "aggression_level", "tightness_level", "bluffing_factor", "starting_stack", "preflop_action", "preflop_bet", "preflop_2_action", "preflop_2_bet",
+        "postflop_strength", "postflop_action", "postflop_bet", "postflop_2_action", "postflop_2_bet",
+        "turn_strength", "turn_action", "turn_bet", "turn_2_action", "turn_2_bet",
+        "river_strength", "river_action", "river_bet", "river_2_action", "river_2_bet", 
+        "folded", "final_contribution", "chips_won", "went_to_showdown", "refills"
+    ]
+
+    # Only keep columns that exist in df_this_hand (in case some aren't created yet)
+    existing_columns = [col for col in desired_column_order if col in df_this_hand.columns]
+    df_this_hand = df_this_hand.reindex(columns=existing_columns)
+
+    # Add to overall results
     results_df = pd.concat([results_df, df_this_hand], ignore_index=True)
 
     return df_this_hand
 
-game_flow(small_blind=5, big_blind=10)
+
+def data_collection(rounds, small_blind = 5, big_blind = 10):
+    """
+    Funtion to run the simulation X number of times into one large dataframe.
+    params:
+        rounds - How many hands the bots will play against each other
+        small_blind - passed to game_flow()
+        big_blind - passed to game_flow()
+    returns:
+        Pandas dataframe of X hands played suitable for ML modeling.
+    """
+    all_results = pd.DataFrame()
+
+    for round_counter in range(1, rounds + 1):
+        try:
+            df_this_hand = game_flow(small_blind, big_blind)
+        except Exception as e:
+            print(f"error on hand {round_counter}: {e}")
+            continue
+
+        if df_this_hand is not None:
+            all_results = pd.concat([all_results, df_this_hand], ignore_index= True)
+
+    return all_results
+
+hand_results = data_collection(rounds = 1000)
+
+hand_results
+
+#something crazy happened where a bot won 63,000 chips in a hand, most liely both hand amazing hands and reraised eachother forever betting chips they did not have to lose 
+
+hand_results[hand_results["chips_won"] >= 10000]
+
+for player in players:
+    print(player.name, player.chips, player.refills)
+
+
+#side pot issues
+#for loops think about tracking the raise or call _2 or _3 or _4 etc, instead of just decsion 1 and 2 being updated at each iteration
+#where are the chips going??

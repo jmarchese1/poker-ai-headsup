@@ -17,7 +17,7 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 #importing custom packages
-from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score, resolve_side_pots
+from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score, resolve_side_pots, award_pot_to_best
 from bots.default_bot import PokerBot
 
 #confiuring pandas display options
@@ -54,6 +54,14 @@ results_df = pd.DataFrame(columns = [])
 hand_counter = 1 #track the number of hands played
 
 def init_player_logs(hand_id, positions):
+    """
+    This functions adds all of the bots information to the dataframe.
+    params:
+        hand_id - the hand being played
+        positions - the updated positions of the bots
+    returns:
+        player information appended to the the dataframe
+    """
     logs = []
     for pos, player in positions.items():
         logs.append({
@@ -75,6 +83,17 @@ def init_player_logs(hand_id, positions):
     return logs
 
 def log_action(logs, player_name, street, action, amount=0):
+    """
+    function to log the action of each player during gameflow.
+    params:
+        logs - dataframe name
+        player_name - makes sure the decisions are associated with the correct player
+        street - the title of the street for the action and the dataframe
+        action - the action the bot selected
+        amount - the amount of the bots bet or raise 
+    returns:
+        added action to the dataframe.
+    """
     for log in logs:
         if log["player_name"] == player_name:
             log[f"{street}_action"] = action
@@ -85,7 +104,19 @@ def log_action(logs, player_name, street, action, amount=0):
             break
 
 def game_flow(small_blind, big_blind):
+    #importing global players and hand tracker to generate unique hand id's
     global players, results_df, hand_counter
+
+    # Reorder columns in dataframe
+    desired_column_order = [
+        "hand_id", "player_name", "position", "hole_cards",
+        "preflop_strength", "aggression_level", "tightness_level", "bluffing_factor", "starting_stack", "preflop_action", "preflop_bet", "preflop_2_action", "preflop_2_bet",
+        "postflop_strength", "postflop_action", "postflop_bet", "postflop_2_action", "postflop_2_bet",
+        "turn_strength", "turn_action", "turn_bet", "turn_2_action", "turn_2_bet",
+        "river_strength", "river_action", "river_bet", "river_2_action", "river_2_bet", 
+        "folded", "final_contribution", "chips_won", "went_to_showdown", "refills"
+    ]
+
 
     players = players[-1:] + players[:-1]  # rotate players clockwise
 
@@ -93,11 +124,10 @@ def game_flow(small_blind, big_blind):
     for p in players:
         p.contribution = 0   
         p.all_in = False
-
-    for p in players: #refill the players stack after they go all in or run out of bigblinds
         if p.chips <= big_blind:
             p.refill_chips()
 
+    #assigning each player a position
     positions = {
         "UTG": players[0],
         "MP": players[1],
@@ -111,13 +141,13 @@ def game_flow(small_blind, big_blind):
     hand_id = hand_counter
     hand_counter += 1
 
-    deck = setup_deck_and_deal(players=players)  # assigns .hole_cards to each bot
+    deck = setup_deck_and_deal(players=players)  # assigns hole_cards to each bot and removing those cards from the deck
 
-    board = []
-    pot = 0
+    board = [] #initalizing an empty board for cards to be assigned to 
+    pot = 0 #initalizing the pot to equal zero
     preflop_information = []
-    preflop_folded_positions = []
-    raiser_position = None
+    preflop_folded_positions = [] #tracking folded players across the hand
+    raiser_position = None #tracking the most recent raiser in the hand 
 
     player_logs = init_player_logs(hand_id, positions)
 
@@ -125,8 +155,12 @@ def game_flow(small_blind, big_blind):
     positions["SB"].contribution += small_blind
     positions["SB"].chips -= small_blind
 
+
     positions["BB"].contribution += big_blind
     positions["BB"].chips -= big_blind
+
+    log_action(player_logs, positions["SB"].name, "preflop", "post_small_blind", small_blind)
+    log_action(player_logs, positions["BB"].name, "preflop", "post_big_blind",   big_blind)
 
 
     pot += small_blind + big_blind
@@ -143,6 +177,7 @@ def game_flow(small_blind, big_blind):
             # Check if only one player remains
             if len(preflop_folded_positions) == len(positions) - 1:
                 for remaining_pos in positions:
+                    #awarding chips to the winning player and logging results
                     if remaining_pos not in preflop_folded_positions:
                         winner = positions[remaining_pos]
                         winner.chips += pot
@@ -150,10 +185,17 @@ def game_flow(small_blind, big_blind):
                             if log["player_name"] == winner.name:
                                 log["chips_won"] = pot
                                 print(f"{winner.name} wins the pot of {pot} chips preflop 💰.")
-                        break
+                                break
+                #if there is only one player left in the hand award chips and end hand
+                df_this_hand = pd.DataFrame(player_logs)
+                existing = [c for c in desired_column_order if c in df_this_hand.columns]
+                df_this_hand = df_this_hand.reindex(columns=existing)
+                return df_this_hand
+
 
         elif action == "call":
             #how to handle if the player needs to call more than the chips in thier stack
+            #at each street this block is designed to adjust call or raise amounts if a player is all-in
             if call_amt > player.chips:
                 actual_call = player.chips
                 player.all_in = True
@@ -163,7 +205,7 @@ def game_flow(small_blind, big_blind):
             pot += actual_call
             player.chips -= actual_call
             player.contribution += actual_call
-            log_action(player_logs, player.name, "preflop", "call", actual_call if position != "SB" else actual_call + small_blind)
+            log_action(player_logs, player.name, "preflop", "call", actual_call)
         elif action == "raise":
             raise_amt = ((random.choice([2, 3]) * big_blind) + (num_limpers * big_blind))
             if raise_amt >= player.chips:
@@ -181,17 +223,19 @@ def game_flow(small_blind, big_blind):
             break
         else:
             #log the action of the big blind
-            log_action(player_logs, player.name, "preflop", "check", big_blind)
+            log_action(player_logs, player.name, "preflop", "check", 0)
 
         if action != "raise":
             preflop_information.append({"action": action, "player": player.name, "position": position})
 
     # Second Preflop Loop (if a raise occurred)
 
+    #only run this block if there was a previous raiser preflop
     if raiser_position is not None:
         loop_counter = 0
         max_loops = 10
         preflop_information_2 = []
+        #continues betting and raising until bots even out thier contributions
         while not all_contributions_equal(positions, preflop_folded_positions):
             if loop_counter >= max_loops:
                 print("Max preflop loops reached, breaking to avoid infinite loop.")
@@ -200,11 +244,12 @@ def game_flow(small_blind, big_blind):
             order = list(positions.keys())
             idx = order.index(raiser_position)
             new_order = [pos for pos in (order[idx+1:] + order[:idx]) if pos not in preflop_folded_positions]
-            cold_callers = []
+            cold_callers = [] #tracking cold callers to make more logical bet sizings 
 
             for pos in new_order:
                 player = positions[pos]
-                call_amt = positions[raiser_position].contribution - player.contribution
+                #dynamic call amount based on the raisers additional contribution compared to the other players
+                call_amt = positions[raiser_position].contribution - player.contribution 
                 action = player.decide_preflop_2(pos, pot, call_amt)
 
                 if action == "fold":
@@ -221,6 +266,10 @@ def game_flow(small_blind, big_blind):
                                         log["chips_won"] = pot
                                         print(f"{winner.name} wins the pot of {pot} chips preflop 💰.")
                                 break
+                        df_this_hand = pd.DataFrame(player_logs)
+                        existing = [c for c in desired_column_order if c in df_this_hand.columns]
+                        df_this_hand = df_this_hand.reindex(columns=existing)
+                        return df_this_hand
 
                 elif action == "call":
                     if call_amt > player.chips:
@@ -341,6 +390,10 @@ def game_flow(small_blind, big_blind):
                                         log["chips_won"] = pot
                                         print(f"{winner.name} wins the pot of {pot} chips postflop 💰.")
                                 break
+                        df_this_hand = pd.DataFrame(player_logs)
+                        existing = [c for c in desired_column_order if c in df_this_hand.columns]
+                        df_this_hand = df_this_hand.reindex(columns=existing)
+                        return df_this_hand
 
                 elif action == "call":
                     if call_amt >= player.chips:
@@ -389,7 +442,7 @@ def game_flow(small_blind, big_blind):
                     if player.name == log["player_name"]:
                         log["turn_strength"] = evaluate_score(player.hand, board)
             else:
-                log["postflop_strength"] = None
+                log["turn_strength"] = None
 
         #the first postflop decision gives bots the option to check or bet. 
         order = list(positions.keys())
@@ -460,6 +513,10 @@ def game_flow(small_blind, big_blind):
                                         log["chips_won"] = pot
                                         print(f"{winner.name} wins the pot of {pot} on the turn 💰.")
                                 break
+                        df_this_hand = pd.DataFrame(player_logs)
+                        existing = [c for c in desired_column_order if c in df_this_hand.columns]
+                        df_this_hand = df_this_hand.reindex(columns=existing)
+                        return df_this_hand
                 elif action == "call":
                     if call_amt >= player.chips:
                         actual_call = player.chips
@@ -507,7 +564,7 @@ def game_flow(small_blind, big_blind):
                     if player.name == log["player_name"]:
                         log["river_strength"] = evaluate_score(player.hand, board)
             else:
-                log["postflop_strength"] = None
+                log["river_strength"] = None
 
         #the first postflop decision gives bots the option to check or bet. 
         order = list(positions.keys())
@@ -520,7 +577,7 @@ def game_flow(small_blind, big_blind):
             #replace with designated turn function
             action = player.decide_postflop(pot = pot, call_amt = max(player_contributions) - player.contribution, player_strength = player_strength)
             if action == "check":
-                log_action(player_logs, player.name, "turn", "check", 0)
+                log_action(player_logs, player.name, "river", "check", 0)
                 river_checks.append(pos)
             elif action == "bet":
                 roll = random.choice([20, 30, 40, 75])
@@ -578,6 +635,10 @@ def game_flow(small_blind, big_blind):
                                         log["chips_won"] = pot
                                         print(f"{winner.name} wins the pot of {pot} on the river 💰.")
                                 break
+                        df_this_hand = pd.DataFrame(player_logs)
+                        existing = [c for c in desired_column_order if c in df_this_hand.columns]
+                        df_this_hand = df_this_hand.reindex(columns=existing)
+                        return df_this_hand
                 elif action == "call":
                     if call_amt >= player.chips:
                         actual_call = player.chips
@@ -611,26 +672,15 @@ def game_flow(small_blind, big_blind):
     #RIVER SHOWDOWN
     remaining_positions = [pos for pos in positions.keys() if pos not in preflop_folded_positions]
     if len(remaining_positions) > 1:
-        player_logs = resolve_side_pots(positions = positions, folded_positions = preflop_folded_positions, board= board, player_logs= player_logs)
+        award_pot_to_best(positions = positions, folded_positions = preflop_folded_positions, board = board, player_logs = player_logs, pot = pot)
+       
 
     df_this_hand = pd.DataFrame(player_logs)
-
-    # Reorder columns
-    desired_column_order = [
-        "hand_id", "player_name", "position", "hole_cards",
-        "preflop_strength", "aggression_level", "tightness_level", "bluffing_factor", "starting_stack", "preflop_action", "preflop_bet", "preflop_2_action", "preflop_2_bet",
-        "postflop_strength", "postflop_action", "postflop_bet", "postflop_2_action", "postflop_2_bet",
-        "turn_strength", "turn_action", "turn_bet", "turn_2_action", "turn_2_bet",
-        "river_strength", "river_action", "river_bet", "river_2_action", "river_2_bet", 
-        "folded", "final_contribution", "chips_won", "went_to_showdown", "refills"
-    ]
 
     # Only keep columns that exist in df_this_hand (in case some aren't created yet)
     existing_columns = [col for col in desired_column_order if col in df_this_hand.columns]
     df_this_hand = df_this_hand.reindex(columns=existing_columns)
 
-    # Add to overall results
-    results_df = pd.concat([results_df, df_this_hand], ignore_index=True)
 
     return df_this_hand
 
@@ -674,3 +724,20 @@ for player in players:
 #side pot issues
 #for loops think about tracking the raise or call _2 or _3 or _4 etc, instead of just decsion 1 and 2 being updated at each iteration
 #where are the chips going??
+
+hand_results[hand_results["postflop_2_bet"] < 0]
+
+# 1) Sum up total_contributed and total_paid for each hand
+summary = hand_results.groupby("hand_id").agg(
+    total_contributed=("final_contribution", "sum"),
+    total_paid=("chips_won", "sum")
+)
+
+# 2) Find all hands where they don’t match
+imbalanced = summary[summary.total_contributed != summary.total_paid]
+
+print(imbalanced)
+
+#go back and clealn and comment code, feature engineer variables into the dataframe at each street
+
+#think about board texture, scare cards out variable, pot odds at each decision

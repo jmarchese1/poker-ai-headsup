@@ -103,6 +103,35 @@ def log_action(logs, player_name, street, action, amount=0):
                 log["folded"] = True
             break
 
+def log_odds_and_ratios(logs, players, folded_positions, pot, call_amount, street):
+    """
+    Function to add the pot_odds and stack_ratios to the player_logs
+    params:
+        logs - dict of player logs for the pot_odds and stack ratios to be appended to 
+        players - a list of players 
+        folded_positions - the players that already folded out of the hand
+        pot - the total size of the pot at the time of logging the decisions
+        call_amount - How much the bot is asked to call at a decision
+        street - helps with naming the dataframe
+    returns:
+        pot_odds and stack_ratios appended to the player_logs.
+    """
+    #double check for edge cases where call amount is 0 every player fold case for chip_ratio
+    total_chips = sum(p.chips for p in players if p not in folded_positions)
+    for log in logs:
+        for player in players:
+            if log["player_name"] == player.name:
+                if call_amount > 0:
+                    log[f"{street}_pot_odds"] = round(pot/call_amount, 2)
+                else:
+                    log[f"{street}_pot_odds"] = None
+
+                if total_chips > 0:
+                    log[f"{street}_chip_ratio"] = round(player.chips/total_chips, 2)
+                else:
+                    log[f"{street}_chip_ratio"] = None
+                break
+
 def game_flow(small_blind, big_blind):
     #importing global players and hand tracker to generate unique hand id's
     global players, results_df, hand_counter
@@ -110,10 +139,10 @@ def game_flow(small_blind, big_blind):
     # Reorder columns in dataframe
     desired_column_order = [
         "hand_id", "player_name", "position", "hole_cards",
-        "preflop_strength", "aggression_level", "tightness_level", "bluffing_factor", "starting_stack", "preflop_action", "preflop_bet", "preflop_2_action", "preflop_2_bet",
-        "postflop_strength", "postflop_action", "postflop_bet", "postflop_2_action", "postflop_2_bet",
-        "turn_strength", "turn_action", "turn_bet", "turn_2_action", "turn_2_bet",
-        "river_strength", "river_action", "river_bet", "river_2_action", "river_2_bet", 
+        "preflop_strength", "aggression_level", "tightness_level", "bluffing_factor", "starting_stack", "preflop_pot_odds", "preflop_chip_ratio", "preflop_action", "preflop_bet", "preflop_2_action", "preflop_2_pot_odds", "preflop_2_chip_ratio", "preflop_2_bet",
+        "postflop_strength", "postflop_action", "postflop_bet", "postflop_2_action", "postflop_2_pot_odds", "postflop_2_chip_ratio", "postflop_2_bet",
+        "turn_strength", "turn_action", "turn_bet", "turn_2_action", "turn_2_pot_odds", "turn_2_chip_ratio", "turn_2_bet",
+        "river_strength", "river_action", "river_bet", "river_2_action", "river_2_pot_odds", "river_2_chip_ratio", "river_2_bet", 
         "folded", "final_contribution", "chips_won", "went_to_showdown", "refills"
     ]
 
@@ -167,9 +196,11 @@ def game_flow(small_blind, big_blind):
     # First Preflop Loop
     for position, player in positions.items():
 
+        
         num_limpers = sum(1 for d in preflop_information if d["action"] == "call")
         call_amt = big_blind - player.contribution
         action = player.decide_preflop(position, pot, call_amt)
+        log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "preflop")
 
         if action == "fold":
             preflop_folded_positions.append(position)
@@ -251,6 +282,7 @@ def game_flow(small_blind, big_blind):
                 #dynamic call amount based on the raisers additional contribution compared to the other players
                 call_amt = positions[raiser_position].contribution - player.contribution 
                 action = player.decide_preflop_2(pos, pot, call_amt)
+                log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "preflop_2")
 
                 if action == "fold":
                     preflop_folded_positions.append(pos)
@@ -375,6 +407,7 @@ def game_flow(small_blind, big_blind):
                 player_strength = evaluate_score(player.hand, board) # gets the rank of the players hand from 1200 worst to 1, the best possible hand
                 action = player.decide_postflop_2(pot = pot, call_amt = call_amt, player_strength = player_strength, raise_or_bet = postflop_raise_or_bet)
                 cold_callers = []
+                log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "postflop_2")
 
                 if action == "fold":
                     preflop_folded_positions.append(pos)
@@ -499,6 +532,7 @@ def game_flow(small_blind, big_blind):
                 #must replace this function with custom turn function
                 action = player.decide_postflop_2(pot = pot, call_amt = call_amt, player_strength = player_strength, raise_or_bet = turn_raise_or_bet)
                 cold_callers = []
+                log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "turn_2")
                 if action == "fold":
                     preflop_folded_positions.append(pos)
                     log_action(player_logs, player.name, "turn_2", "fold", 0)
@@ -621,6 +655,7 @@ def game_flow(small_blind, big_blind):
                 #must replace this function with custom turn function
                 action = player.decide_postflop_2(pot = pot, call_amt = call_amt, player_strength = player_strength, raise_or_bet = river_raise_or_bet)
                 cold_callers = []
+                log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "river_2")
                 if action == "fold":
                     preflop_folded_positions.append(pos)
                     log_action(player_logs, player.name, "river_2", "fold", 0)
@@ -709,7 +744,7 @@ def data_collection(rounds, small_blind = 5, big_blind = 10):
 
     return all_results
 
-hand_results = data_collection(rounds = 1000)
+hand_results = data_collection(rounds = 50)
 
 hand_results
 
@@ -741,3 +776,4 @@ print(imbalanced)
 #go back and clealn and comment code, feature engineer variables into the dataframe at each street
 
 #think about board texture, scare cards out variable, pot odds at each decision
+

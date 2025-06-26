@@ -3,6 +3,7 @@ import random
 import pandas as pd
 import numpy as np
 import os, sys
+from stable_baselines3 import PPO
 
 #setting working directory
 print("cwd: ", os.getcwd())
@@ -17,8 +18,9 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 #importing custom packages
-from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score, resolve_side_pots, award_pot_to_best
+from engine.simulation_helpers import setup_deck_and_deal, prettify_hand, get_hand_strength, all_contributions_equal, highest_straight, highest_straight_flush, evaluate, hand_score, evaluate_score, award_pot_to_best, encode_obs, POSITION_MAP
 from bots.default_bot import PokerBot
+from bots.rl_bot import RLBot
 
 #confiuring pandas display options
 pd.set_option('display.max_columns', None)
@@ -46,8 +48,12 @@ Ember = PokerBot(name = "Ember", chips = 2000, aggression_level = 60, tightness_
 Flint = PokerBot(name = "Flint", chips = 2000, aggression_level = 70, tightness_level = 3, bluffing_factor = 22)
 Gio = PokerBot(name = "Gio", chips = 2000, aggression_level = 80, tightness_level = 3, bluffing_factor = 25)
 
+#Reinforcement learning bot 
+model = PPO.load(r"C:\Users\jason\projects\poker_project\poker-ai-headsup\poker_rl_model.zip")
+Ruby = RLBot(name = "Ruby", model = model)
+
 #creating a list of players to be used in the game
-players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Gio]         
+players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Ruby]         
 
 #creating a dataframe to track decision making and results
 results_df = pd.DataFrame(columns = [])
@@ -136,6 +142,9 @@ def game_flow(small_blind, big_blind):
     #importing global players and hand tracker to generate unique hand id's
     global players, results_df, hand_counter
 
+    if isinstance(player, RLBot):
+        player.reset_hand(player.chips)
+
     # Reorder columns in dataframe
     desired_column_order = [
         "hand_id", "player_name", "position", "hole_cards",
@@ -199,7 +208,11 @@ def game_flow(small_blind, big_blind):
         
         num_limpers = sum(1 for d in preflop_information if d["action"] == "call")
         call_amt = big_blind - player.contribution
-        action = player.decide_preflop(position, pot, call_amt)
+        if isinstance(player, RLBot):
+            obs = encode_obs(game_state, player_position)
+            action = player.decide(obs)
+        else:
+            action = player.decide_preflop(position, pot, call_amt)
         log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "preflop")
 
         if action == "fold":
@@ -744,7 +757,7 @@ def data_collection(rounds, small_blind = 5, big_blind = 10):
 
     return all_results
 
-hand_results = data_collection(rounds = 50)
+hand_results = data_collection(rounds = 500)
 
 hand_results
 

@@ -48,12 +48,12 @@ Ember = PokerBot(name = "Ember", chips = 2000, aggression_level = 60, tightness_
 Flint = PokerBot(name = "Flint", chips = 2000, aggression_level = 70, tightness_level = 3, bluffing_factor = 22)
 Gio = PokerBot(name = "Gio", chips = 2000, aggression_level = 80, tightness_level = 3, bluffing_factor = 25)
 
-#Reinforcement learning bot 
+#Reinforcement learning bot, create gym enviornment for rl bot decision making
 model = PPO.load(r"C:\Users\jason\projects\poker_project\poker-ai-headsup\poker_rl_model.zip")
-Ruby = RLBot(name = "Ruby", model = model)
+Rocky = RLBot(name = "Rocky", model = model)
 
 #creating a list of players to be used in the game
-players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Ruby]         
+players = [Atlas, Blair, Cruz, Drew, Ember, Flint, Gio]         
 
 #creating a dataframe to track decision making and results
 results_df = pd.DataFrame(columns = [])
@@ -142,9 +142,6 @@ def game_flow(small_blind, big_blind):
     #importing global players and hand tracker to generate unique hand id's
     global players, results_df, hand_counter
 
-    if isinstance(player, RLBot):
-        player.reset_hand(player.chips)
-
     # Reorder columns in dataframe
     desired_column_order = [
         "hand_id", "player_name", "position", "hole_cards",
@@ -208,11 +205,7 @@ def game_flow(small_blind, big_blind):
         
         num_limpers = sum(1 for d in preflop_information if d["action"] == "call")
         call_amt = big_blind - player.contribution
-        if isinstance(player, RLBot):
-            obs = encode_obs(game_state, player_position)
-            action = player.decide(obs)
-        else:
-            action = player.decide_preflop(position, pot, call_amt)
+        action = player.decide_preflop(position, pot, call_amt)
         log_odds_and_ratios(logs = player_logs, players = players, folded_positions= preflop_folded_positions, pot = pot, call_amount = call_amt, street= "preflop")
 
         if action == "fold":
@@ -757,36 +750,12 @@ def data_collection(rounds, small_blind = 5, big_blind = 10):
 
     return all_results
 
-hand_results = data_collection(rounds = 500)
 
-hand_results
 
-#something crazy happened where a bot won 63,000 chips in a hand, most liely both hand amazing hands and reraised eachother forever betting chips they did not have to lose 
+hand_results = data_collection(50)
 
-hand_results[hand_results["chips_won"] >= 10000]
 
 for player in players:
     print(player.name, player.chips, player.refills)
 
-
-#side pot issues
-#for loops think about tracking the raise or call _2 or _3 or _4 etc, instead of just decsion 1 and 2 being updated at each iteration
-#where are the chips going??
-
-hand_results[hand_results["postflop_2_bet"] < 0]
-
-# 1) Sum up total_contributed and total_paid for each hand
-summary = hand_results.groupby("hand_id").agg(
-    total_contributed=("final_contribution", "sum"),
-    total_paid=("chips_won", "sum")
-)
-
-# 2) Find all hands where they don’t match
-imbalanced = summary[summary.total_contributed != summary.total_paid]
-
-print(imbalanced)
-
-#go back and clealn and comment code, feature engineer variables into the dataframe at each street
-
-#think about board texture, scare cards out variable, pot odds at each decision
 

@@ -24,15 +24,22 @@ from engine.simulation_helpers import get_hand_strength
 
 class PokerBot:
 
-    def __init__(self, name, aggression_level, tightness_level, bluffing_factor):
+    def __init__(self, name, chips, aggression_level, tightness_level, bluffing_factor):
         self.name = name
-        self.chips = 1000
+        self.chips = chips
         self.contribution = 0 # tracks how many chips the players have added to the pot 
+        self.all_in = False
         self.hand = [] #create a function to pass two cards into this list
         self.aggression_level = aggression_level #should be a number from 1 to 100
         self.tightness_level = tightness_level #should be a number 1 to 3 (1 is the tightest range)
-        self.bluffing_factor = bluffing_factor
+        self.bluffing_factor = bluffing_factor #should be a number 0 to 30 representing percentage of the time with complete bluffs
+        self.refills = 0 # counter to track the amount of times the bot refilled its stack  
 
+    def refill_chips(self, starting_stack = 2000, big_blind = 10):
+        if self.chips < big_blind:
+            refill_amount = starting_stack - self.chips
+            self.chips += refill_amount
+            self.refills += 1
 
     def decide_preflop(self, position, pot, call_amount):
         """
@@ -68,9 +75,9 @@ class PokerBot:
                 elif hand_strength == 7:
                     decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 elif hand_strength in [5, 6]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
                 elif hand_strength in [3, 4]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
                 else:
                     decision = "fold"
             else: #loosest preflop range
@@ -81,9 +88,9 @@ class PokerBot:
                 elif hand_strength == 7:
                     decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 elif hand_strength in [5, 6]:
-                    decision == "raise" if random.randint(1, 100) <= self.aggression_level + 15 else "call"
+                    decision = "raise" if random.randint(1, 100) <= self.aggression_level + 15 else "call"
                 elif hand_strength in [3 ,4]:
-                    decision == "raise" if random.randint(1, 100) <= self.aggression_level else "call"
+                    decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 else: 
                     decision = "call" if random.randint(1, 100) <= self.aggression_level -50 else "fold"
                 
@@ -98,9 +105,9 @@ class PokerBot:
                 elif hand_strength == 7:
                     decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 elif hand_strength in [5, 6]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
                 elif hand_strength in [3, 4]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level else "fold"
                 else:
                     decision = "fold"
             elif self.tightness_level == 2: #balanced preflop range
@@ -111,9 +118,9 @@ class PokerBot:
                 elif hand_strength == 7:
                     decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 elif hand_strength in [5, 6]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level + 30 else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level + 30 else "fold"
                 elif hand_strength in [3, 4]:
-                    decision == "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
+                    decision = "call" if random.randint(1, 100) <= self.aggression_level + 15 else "fold"
                 else:
                     decision = "fold"
             else: #loosest preflop range
@@ -124,9 +131,9 @@ class PokerBot:
                 elif hand_strength == 7:
                     decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 elif hand_strength in [5, 6]:
-                    decision == "raise" if random.randint(1, 100) <= self.aggression_level + 30 else "call"
+                    decision = "raise" if random.randint(1, 100) <= self.aggression_level + 30 else "call"
                 elif hand_strength in [3 ,4]:
-                    decision == "raise" if random.randint(1, 100) <= self.aggression_level else "call"
+                    decision = "raise" if random.randint(1, 100) <= self.aggression_level else "call"
                 else: 
                     decision = "call" if random.randint(1, 100) <= self.aggression_level -30 else "fold"
 
@@ -285,8 +292,10 @@ class PokerBot:
             - player_strength: strength of the player's hand compared to all possible hands with the board
         Uses:
             - aggression_level: how loose/aggressive this bot plays
+            - bluff_factor: how much the player decides to bluff with poor hands 
             - hand_strength: derived from private hand and board
         """
+
         #pot odds can be used when deciding to call or not 
         pot_odds = pot / call_amt if call_amt > 0 else float('inf')
         #the options are to bet or check
@@ -298,8 +307,13 @@ class PokerBot:
             decision = "bet" if self.aggression_level >= random.randint(1, 100) else "check"
         elif player_strength  <= 500:
             decision = "bet" if self.aggression_level - 30 >= random.randint(1, 100) else "check"
-        else: #complete bluffs
-            decision = "bet" if self.aggression_level - 85 >= random.randint(1, 100) else "check"
+        else: #complete bluffs bad hands 
+            if self.bluffing_factor >= random.randint(1, 100):
+                decision = "bet"
+            else:
+                decision = "check"
+
+            
         
 
         
@@ -331,14 +345,14 @@ class PokerBot:
                     decision = "call" if self.aggression_level > random.randint(1, 100) else "fold"
                 else:
                     roll = random.randint(1, 100)
-                    if self.aggression_level - 70 >= roll:
+                    if self.bluffing_factor >= roll:
                         decision = "raise" #opportunity for aggressive players to completely bluff
                     else:
                         decision = "fold"
                     
             
-            else: #the raise starts to look very strong and bots should be cautious
-                if player_strength <= 20:
+            else: #the raise starts to look very strong and bots should be cautious - most likely a large overbet don't bluff into it
+                if player_strength <= 20: 
                     decision = "call"
                 else:
                     decision = "fold"
@@ -351,7 +365,7 @@ class PokerBot:
                 elif player_strength <= 500 and player_strength >= 150:
                     decision = "call" if self.aggression_level + 25 > random.randint(1, 100) else "fold"
                 else:
-                    decision = "call" if self.aggression_level - 10 > random.randint(1, 100) else "fold"
+                    decision = "raise" if self.bluffing_factor > random.randint(1, 100) else "fold"
             
 
             else: #poor pot odds only strong hands contine
@@ -362,7 +376,7 @@ class PokerBot:
                 elif player_strength >= 200 and player_strength <= 400:
                     decision = "call" if self.aggression_level + 20 >= random.randint(1, 100) else "fold"
                 else: #almost always folds except most aggressive players
-                    decision = "call" if self.aggression_level - 85 > random.randint(1, 100) else "fold"
+                    decision = "raise" if self.bluffing_factor > random.randint(1, 100) else "fold"
         
         return decision
 

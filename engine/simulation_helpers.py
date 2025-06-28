@@ -58,7 +58,7 @@ def all_contributions_equal(positions, folded):
      positions: The dictionary of players positions and thier names
      folded: list of players that folded out of the hand 
      """
-     contributions = [player.contribution for pos, player in positions.items() if pos not in folded]
+     contributions = [player.contribution for pos, player in positions.items() if pos not in folded and not player.all_in]
      return len(set(contributions)) == 1 #checks if all the player contributions are the same or not 
 
 def prettify_hand(hand):
@@ -227,6 +227,124 @@ def evaluate_score(player_hand, board):
     hand_rank = hand_standings.index(player_score) + 1
     return hand_rank
 
+def resolve_side_pots(positions, folded_positions, board, player_logs):
+    """
+    Distributes chips using side pot logic.
+    Args:
+        positions: dict of positions -> PokerBot
+        folded_positions: list of positions that folded
+        board: list of 5 board cards
+        player_logs: list of dicts from init_player_logs()
+    Returns:
+        Updates player.chips and player_logs in-place
+    """
+    # Step 1: Build a list of (name, contribution, hand strength, folded)
+    active = []
+    for pos, player in positions.items():
+        folded = pos in folded_positions
+        strength = evaluate_score(player.hand, board) if not folded else None
+        active.append({
+            "pos": pos,
+            "name": player.name,
+            "contribution": player.contribution,
+            "folded": folded,
+            "strength": strength,
+            "player": player
+        })
+
+    # Step 2: Sort by contribution size ascending
+    active.sort(key=lambda x: x["contribution"])
+
+    # Step 3: Build side pots
+    side_pots = []
+    prev = 0
+    while active:
+        min_contribution = active[0]["contribution"]
+        pot_size = (min_contribution - prev) * len(active)
+        eligible = [a for a in active if not a["folded"]]
+        side_pots.append((pot_size, eligible))
+        prev = min_contribution
+        active = [
+            {**a, "contribution": a["contribution"] - min_contribution}
+            for a in active if a["contribution"] > min_contribution
+        ]
+
+    # Step 4: Award each pot to the best hand among eligible
+    for pot_amt, eligibles in side_pots:
+        if not eligibles:
+            continue
+        best_score = min(a["strength"] for a in eligibles)
+        winners = [a for a in eligibles if a["strength"] == best_score]
+        split_amt = pot_amt // len(winners)
+        for w in winners:
+            w["player"].chips += split_amt
+            for log in player_logs:
+                if log["player_name"] == w["name"]:
+                    log["chips_won"] += split_amt
+                    log["went_to_showdown"] = True
+
+    return player_logs
+
+
+def award_pot_to_best(positions, folded_positions, board, player_logs, pot):
+    """
+    Ignores side-pots entirely.  Whoever has the best hand among
+    the non-folded players wins (or splits) the full pot.
+    """
+    # 1) collect each non-folded player and their strength
+    contenders = []
+    for pos, bot in positions.items():
+        if pos not in folded_positions:
+            strength = evaluate_score(bot.hand, board)
+            contenders.append({"bot": bot, "strength": strength})
+
+    # 2) find the best (lowest) strength
+    best_strength = min(c["strength"] for c in contenders)
+    winners = [c["bot"] for c in contenders if c["strength"] == best_strength]
+
+    # 3) split the pot equally
+    share = pot // len(winners)
+    for w in winners:
+        w.chips += share
+        # update your logs
+        for log in player_logs:
+            if log["player_name"] == w.name:
+                log["chips_won"]   += share
+                log["went_to_showdown"] = True
+
+    return player_logs
+
+
+import numpy as np
+
+POSITION_MAP = {"UTG": 0, "MP": 1, "HJ": 2, "CO": 3, "BTN": 4, "SB": 5, "BB": 6}
+
+def encode_obs(player, position, pot, call_amt):
+    hand = player.hole_cards
+    card1 = (hand[0][0] - 2) * 4 + hand[0][1]
+    card2 = (hand[1][0] - 2) * 4 + hand[1][1]
+
+    def hand_strength(h):
+        ranks = sorted([card[0] for card in h])
+        suited = h[0][1] == h[1][1]
+        if ranks[0] == ranks[1]:
+            return 0.9
+        elif suited and ranks[1] - ranks[0] == 1:
+            return 0.8
+        elif ranks[0] >= 10:
+            return 0.7
+        else:
+            return 0.2
+
+    return np.array([
+        card1 / 51,
+        card2 / 51,
+        player.chips / 20000,
+        pot / 10000,
+        call_amt / 10000,
+        POSITION_MAP[position] / 6,
+        hand_strength(hand)
+    ], dtype=np.float32)
 
 
 
